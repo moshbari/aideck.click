@@ -159,12 +159,18 @@ Return the JSON object directly.`;
       .map((block) => (block as any).text)
       .join('');
 
+    // Strip markdown code fences if present (e.g. ```json ... ```)
+    let cleanedText = responseText.trim();
+    if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    }
+
     // Parse the JSON response
     let structure: PresentationStructure;
     try {
-      structure = JSON.parse(responseText);
+      structure = JSON.parse(cleanedText);
     } catch (parseError) {
-      throw new Error(`Failed to parse Claude response as JSON: ${responseText.substring(0, 200)}`);
+      throw new Error(`Failed to parse Claude response as JSON: ${cleanedText.substring(0, 200)}`);
     }
 
     // Validate structure

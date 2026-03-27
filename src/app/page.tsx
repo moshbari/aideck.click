@@ -78,8 +78,20 @@ export default function Home() {
       const url = window.URL.createObjectURL(blob);
       setGeneratedFile(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error generating deck. Please try again.');
       console.error(err);
+      // Show friendly error messages instead of raw technical details
+      const rawMsg = err instanceof Error ? err.message : '';
+      let friendlyMsg = "Something didn't go as planned — but no worries! Please try again in a moment.";
+      if (rawMsg.includes('parse') || rawMsg.includes('JSON')) {
+        friendlyMsg = "Our AI got a little creative with its response. Please try again — it usually works on the next attempt!";
+      } else if (rawMsg.includes('timeout') || rawMsg.includes('504') || rawMsg.includes('529')) {
+        friendlyMsg = "Things are a bit busy right now. Give it a moment and try again — your presentation will be worth the wait!";
+      } else if (rawMsg.includes('rate') || rawMsg.includes('429')) {
+        friendlyMsg = "We're getting a lot of requests right now. Please wait a minute and try again.";
+      } else if (rawMsg.includes('401') || rawMsg.includes('auth')) {
+        friendlyMsg = "There's a configuration issue on our end. We're working on it — please try again shortly.";
+      }
+      setError(friendlyMsg);
     } finally {
       clearInterval(interval);
       setIsLoading(false);
@@ -221,8 +233,9 @@ export default function Home() {
 
         {/* Error message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-xl text-red-300 text-sm">
-            {error}
+          <div className="mb-6 p-4 bg-orange-900/20 border border-orange-700/50 rounded-xl text-orange-200 text-sm flex items-start gap-3">
+            <span className="text-xl mt-0.5">💡</span>
+            <span>{error}</span>
           </div>
         )}
 
