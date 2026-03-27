@@ -15,18 +15,34 @@ export default function ResetPasswordPage() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Supabase will exchange the token from the URL hash automatically
-    // when the client is initialized. We just need to wait a moment.
     const supabase = createClient();
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsReady(true);
-      }
-    });
 
-    // Also set ready after a short delay in case the event already fired
-    const timer = setTimeout(() => setIsReady(true), 1500);
-    return () => clearTimeout(timer);
+    // Check for token_hash in URL query params (new PKCE-compatible flow)
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
+
+    if (tokenHash && type === 'recovery') {
+      // Verify the OTP token client-side — works with PKCE flow
+      supabase.auth
+        .verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+        .then(({ error: verifyError }) => {
+          if (verifyError) {
+            setError(verifyError.message);
+          }
+          setIsReady(true);
+        });
+    } else {
+      // Fallback: listen for PASSWORD_RECOVERY event from hash-based links
+      supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsReady(true);
+        }
+      });
+      // Also set ready after a short delay in case the event already fired
+      const timer = setTimeout(() => setIsReady(true), 1500);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {

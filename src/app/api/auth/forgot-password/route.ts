@@ -51,9 +51,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
-    if (linkError || !linkData?.properties?.action_link) {
+    if (linkError || !linkData?.properties?.hashed_token) {
       console.error(
-        `[Forgot-PW] Error generating link: ${linkError?.message || 'no link returned'}`,
+        `[Forgot-PW] Error generating link: ${linkError?.message || 'no token returned'}`,
       );
       return NextResponse.json(
         { error: 'Failed to generate reset link' },
@@ -61,7 +61,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resetLink = linkData.properties.action_link;
+    // Use hashed_token instead of action_link to avoid Supabase's
+    // /auth/v1/verify endpoint which fails with PKCE flow.
+    // The reset-password page will call verifyOtp() client-side.
+    const tokenHash = linkData.properties.hashed_token;
+    const resetLink = `https://aideck.click/reset-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
     console.log(`[Forgot-PW] Generated reset link for ${normalizedEmail}`);
 
     // 3. POST to GoHighLevel webhook to trigger the password-reset email
