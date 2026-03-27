@@ -116,16 +116,14 @@ export async function POST(request: NextRequest) {
         });
 
         if (createError) {
-          // If user already exists in auth but not in profiles, look them up
-          if (createError.message?.includes('already been registered')) {
-            const { data: { users } } = await supabase.auth.admin.listUsers();
-            const existingUser = users?.find(u => u.email === buyerEmail);
-            if (existingUser) {
-              userId = existingUser.id;
-              console.log(`[W+ IPN] Found existing auth user ${buyerEmail}, id: ${userId}`);
-            }
-          } else {
-            console.error(`[W+ IPN] Error creating user: ${createError.message}`);
+          // Any error (including "already registered" or "Database error") —
+          // try to find the existing auth user so we can still generate a link
+          console.error(`[W+ IPN] Error creating user: ${createError.message}`);
+          const { data: { users } } = await supabase.auth.admin.listUsers();
+          const existingUser = users?.find(u => u.email === buyerEmail);
+          if (existingUser) {
+            userId = existingUser.id;
+            console.log(`[W+ IPN] Found existing auth user ${buyerEmail}, id: ${userId}`);
           }
         } else if (newUser?.user) {
           userId = newUser.user.id;
@@ -150,8 +148,8 @@ export async function POST(request: NextRequest) {
             console.log(`[W+ IPN] Generated password setup link for ${buyerEmail}`);
           } else if (linkError) {
             console.error(`[W+ IPN] Error generating link: ${linkError.message}`);
-            // Fallback: user can use "Forgot Password" on the login page
-            passwordSetupLink = 'https://aideck.click/login';
+            // Fallback: user can use "Forgot Password" to get a new link
+            passwordSetupLink = 'https://aideck.click/forgot-password';
           }
         }
 
@@ -237,7 +235,7 @@ export async function POST(request: NextRequest) {
               last_name: lastName,
               product_name: product.name,
               credits: product.credits,
-              password_setup_link: passwordSetupLink || 'https://aideck.click/login',
+              password_setup_link: passwordSetupLink || 'https://aideck.click/forgot-password',
               sale_amount: saleAmount,
               wp_sale_id: saleId,
             }),
