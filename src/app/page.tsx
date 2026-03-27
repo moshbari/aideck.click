@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import type { AideckProfile } from '@/lib/supabase/types';
 
 const TONE_OPTIONS = [
   { label: 'Professional', value: 'professional' },
@@ -40,11 +42,39 @@ export default function Home() {
   const [slides, setSlides] = useState(10);
   const [colorIndex, setColorIndex] = useState(0);
   const [purposeIndex, setPurposeIndex] = useState<number | null>(null);
-  const [animations, setAnimations] = useState(false);
+  const [animations, setAnimations] = useState(true); // ON by default
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [generatedFile, setGeneratedFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [profile, setProfile] = useState<AideckProfile | null>(null);
+
+  // Auth check + restore last prompt from localStorage
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      if (u) {
+        setUser({ id: u.id, email: u.email || '' });
+        supabase
+          .from('aideck_profiles')
+          .select('*')
+          .eq('id', u.id)
+          .single()
+          .then(({ data }) => {
+            if (data) setProfile(data as AideckProfile);
+          });
+      }
+    });
+
+    // Restore last prompt from localStorage
+    try {
+      const saved = localStorage.getItem('aideck_last_prompt');
+      if (saved) setPrompt(saved);
+      const savedFile = localStorage.getItem('aideck_last_file');
+      if (savedFile) setGeneratedFile(savedFile);
+    } catch {}
+  }, []);
 
   const startLoadingAnimation = () => {
     let index = 0;
@@ -61,11 +91,30 @@ export default function Home() {
       return;
     }
 
+    // Credit/free deck check
+    if (profile) {
+      if (profile.plan === 'free' && profile.lifetime_free_decks_used >= profile.lifetime_free_decks_limit) {
+        setError("You've used your 2 free decks. Sign in to your dashboard to buy credits and upgrade!");
+        return;
+      }
+      if (profile.plan === 'pro' && profile.credits <= 0) {
+        setError("You're out of credits. Visit your dashboard to buy more!");
+        return;
+      }
+      if (profile.status === 'inactive') {
+        setError('Your account has been deactivated. Please contact support.');
+        return;
+      }
+    }
+
     setIsLoading(true);
     setError(null);
     const interval = startLoadingAnimation();
 
     try {
+      // Save prompt to localStorage
+      try { localStorage.setItem('aideck_last_prompt', prompt); } catch {}
+
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,6 +136,43 @@ export default function Home() {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       setGeneratedFile(url);
+
+      // Save file URL to localStorage
+      try { localStorage.setItem('aideck_last_file', url); } catch {}
+
+      // Track generation in Supabase if logged in
+      if (user && profile) {
+        const supabase = createClient();
+        const { data: gen } = await supabase.from('aideck_generations').insert({
+          user_id: user.id,
+          prompt,
+          tone: TONE_OPTIONS[toneIndex].value,
+          purpose: purposeIndex !== null ? PURPOSE_OPTIONS[purposeIndex].value : null,
+          slide_count: slides,
+          color_theme: COLOR_OPTIONS[colorIndex].value,
+          animations,
+          credits_used: profile.plan === 'free' ? 0 : 1,
+        }).select().single();
+
+        if (profile.plan === 'free') {
+          // Increment free deck usage
+          const newUsed = profile.lifetime_free_decks_used + 1;
+          await supabase.from('aideck_profiles').update({ lifetime_free_decks_used: newUsed }).eq('id', user.id);
+          setProfile({ ...profile, lifetime_free_decks_used: newUsed });
+        } else {
+          // Deduct credit for pro users
+          const newCredits = profile.credits - 1;
+          await supabase.from('aideck_profiles').update({ credits: newCredits }).eq('id', user.id);
+          await supabase.from('aideck_credit_transactions').insert({
+            user_id: user.id,
+            amount: -1,
+            type: 'usage',
+            description: 'Deck generation',
+            generation_id: gen?.id || null,
+          });
+          setProfile({ ...profile, credits: newCredits });
+        }
+      }
     } catch (err) {
       console.error(err);
       // Show friendly error messages instead of raw technical details
@@ -124,6 +210,58 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      {/* Top Navigation */}
+      <nav className="flex items-center justify-between px-6 py-4 border-b border-gray-900">
+        <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-pink-500 bg-clip-text text-transparent">
+          AIDeck
+        </span>
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              {profile && (
+                <span className="text-sm text-gray-400">
+                  {profile.plan === 'free'
+                    ? `${profile.lifetime_free_decks_limit - profile.lifetime_free_decks_used} free decks left`
+                    : `${profile.credits} credits`}
+                </span>
+              )}
+              <a
+                href="/dashboard"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
+                Dashboard
+              </a>
+              <button
+                onClick={async () => {
+                  const supabase = createClient();
+                  await supabase.auth.signOut();
+                  setUser(null);
+                  setProfile(null);
+                }}
+                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <a
+                href="/login"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
+                Sign In
+              </a>
+              <a
+                href="/signup"
+                className="text-sm px-4 py-1.5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium hover:shadow-lg transition-shadow"
+              >
+                Sign Up Free
+              </a>
+            </>
+          )}
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden px-4 py-20 sm:py-32">
         <div className="mx-auto max-w-4xl text-center">
@@ -309,8 +447,12 @@ export default function Home() {
                 setPrompt('');
                 setLoadingMessageIndex(0);
                 setError(null);
-                setAnimations(false);
+                setAnimations(true);
                 setPurposeIndex(null);
+                try {
+                  localStorage.removeItem('aideck_last_prompt');
+                  localStorage.removeItem('aideck_last_file');
+                } catch {}
               }}
               className="flex-1 py-4 px-6 rounded-xl font-bold text-lg bg-gray-900 border border-gray-800 text-white hover:border-gray-700 transition-all"
             >
@@ -358,91 +500,91 @@ export default function Home() {
 
       {/* Pricing Section */}
       <div className="mx-auto max-w-4xl px-4 py-20">
-        <h2 className="text-4xl font-bold text-center mb-16">Simple Pricing</h2>
+        <h2 className="text-4xl font-bold text-center mb-4">Simple Pricing</h2>
+        <p className="text-center text-gray-400 mb-16">No monthly subscriptions. Buy once, use credits when you need them.</p>
         <div className="grid md:grid-cols-3 gap-8">
           {/* Free Tier */}
           <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
             <h3 className="text-2xl font-bold mb-2">Free</h3>
-            <p className="text-gray-400 mb-6">Get started</p>
+            <p className="text-gray-400 mb-6">Try it out</p>
             <div className="mb-8">
               <span className="text-4xl font-bold">$0</span>
-              <span className="text-gray-400 ml-2">/month</span>
             </div>
             <ul className="space-y-3 mb-8">
               <li className="text-gray-300 flex items-center">
                 <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                2 decks/month
+                2 lifetime decks
               </li>
-              <li className="text-gray-500 flex items-center">
-                <span className="w-5 h-5 rounded-full bg-gray-700 mr-3 shrink-0"></span>
-                Basic themes
+              <li className="text-gray-300 flex items-center">
+                <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
+                All themes &amp; layouts
               </li>
-              <li className="text-gray-500 flex items-center">
-                <span className="w-5 h-5 rounded-full bg-gray-700 mr-3 shrink-0"></span>
-                Limited customization
+              <li className="text-gray-300 flex items-center">
+                <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
+                Click animations
               </li>
             </ul>
-            <button className="w-full py-2 px-4 rounded-lg border border-gray-700 text-white hover:bg-gray-800 transition-colors">
-              Get Started
-            </button>
+            <a href="/signup" className="block w-full py-2 px-4 rounded-lg border border-gray-700 text-white hover:bg-gray-800 transition-colors text-center">
+              Sign Up Free
+            </a>
           </div>
 
-          {/* Pro Tier */}
+          {/* Pro Access Tier */}
           <div className="relative bg-gradient-to-br from-orange-500/20 to-pink-500/20 rounded-2xl p-8 border border-orange-500/30 transform scale-105">
             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <span className="bg-gradient-to-r from-orange-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                Most Popular
+                Best Value
               </span>
             </div>
-            <h3 className="text-2xl font-bold mb-2 mt-6">Pro</h3>
-            <p className="text-gray-300 mb-6">For creators</p>
+            <h3 className="text-2xl font-bold mb-2 mt-6">Pro Access</h3>
+            <p className="text-gray-300 mb-6">One-time purchase</p>
             <div className="mb-8">
-              <span className="text-4xl font-bold">$9</span>
-              <span className="text-gray-300 ml-2">/month</span>
+              <span className="text-4xl font-bold">$29</span>
+              <span className="text-gray-300 ml-2">once</span>
             </div>
             <ul className="space-y-3 mb-8">
               <li className="text-gray-200 flex items-center">
                 <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                Unlimited decks
+                15 credits included
               </li>
               <li className="text-gray-200 flex items-center">
                 <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                All themes
+                All features unlocked
               </li>
               <li className="text-gray-200 flex items-center">
                 <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                Full customization
+                No subscription ever
               </li>
             </ul>
             <button className="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold hover:shadow-lg transition-shadow">
-              Start Free Trial
+              Get Pro Access
             </button>
           </div>
 
-          {/* Team Tier */}
+          {/* Credit Packs */}
           <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
-            <h3 className="text-2xl font-bold mb-2">Team</h3>
-            <p className="text-gray-400 mb-6">For organizations</p>
+            <h3 className="text-2xl font-bold mb-2">Credit Packs</h3>
+            <p className="text-gray-400 mb-6">Top up anytime</p>
             <div className="mb-8">
-              <span className="text-4xl font-bold">$29</span>
-              <span className="text-gray-400 ml-2">/month</span>
+              <span className="text-4xl font-bold">$5</span>
+              <span className="text-gray-400 ml-2">/ 20 credits</span>
             </div>
             <ul className="space-y-3 mb-8">
               <li className="text-gray-300 flex items-center">
                 <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                Everything in Pro
+                50 credits — $10
               </li>
               <li className="text-gray-300 flex items-center">
                 <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                Team collaboration
+                100 credits — $17
               </li>
               <li className="text-gray-300 flex items-center">
                 <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                Brand customization
+                250 credits — $35
               </li>
             </ul>
             <button className="w-full py-2 px-4 rounded-lg border border-gray-700 text-white hover:bg-gray-800 transition-colors">
-              Contact Sales
+              Buy Credits
             </button>
           </div>
         </div>
