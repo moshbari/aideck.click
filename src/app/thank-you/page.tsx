@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Suspense } from 'react';
@@ -9,14 +10,11 @@ import { Suspense } from 'react';
 /**
  * Thank You / Welcome Page — shown after WarriorPlus purchase
  *
- * WarriorPlus redirects buyers here after checkout (set as the Delivery URL).
- * URL includes ?email=((customer_email))&name=((customer_name)) tokens from W+.
- *
- * The page:
- *   1. Welcomes the customer and confirms their purchase
- *   2. Shows their delivery email prominently (to avoid wrong-email signups)
- *   3. Tells them we sent a password-setup email
- *   4. Provides a signup form pre-filled with their delivery email
+ * Flow:
+ *   1. Checkout email guide image at top (shows 2 emails in W+ checkout)
+ *   2. "We already sent you a password setup email" — use your DELIVERY email
+ *   3. Can't find it? Check spam
+ *   4. Still can't find it? Use the form below (last resort)
  */
 
 function ThankYouContent() {
@@ -30,8 +28,8 @@ function ThankYouContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
-  // Pre-fill form fields from URL params (W+ delivery email & name)
   useEffect(() => {
     if (urlEmail) setEmail(urlEmail);
     if (urlName) setFullName(urlName);
@@ -45,21 +43,15 @@ function ThankYouContent() {
 
     try {
       const supabase = createClient();
-
-      // First try to sign up — if account was auto-created by IPN,
-      // this will fail, so we catch and guide the user to check email
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-          },
+          data: { full_name: fullName },
         },
       });
 
       if (signUpError) {
-        // If user already exists (auto-created by IPN), guide them
         if (
           signUpError.message?.toLowerCase().includes('already registered') ||
           signUpError.message?.toLowerCase().includes('already been registered')
@@ -94,21 +86,24 @@ function ThankYouContent() {
           </div>
           <h1 className="text-4xl font-bold mb-2">Thank You for Your Purchase!</h1>
           <p className="text-gray-400 text-lg">
-            Your AI Deck credits have been applied. Let&apos;s get you into your account.
+            Your AI Deck credits have been applied.
           </p>
         </div>
 
-        {/* ---- Your Account Email (from W+ delivery email) ---- */}
-        {urlEmail && (
-          <div className="mb-6 p-5 bg-gradient-to-r from-orange-500/10 to-pink-500/10 border-2 border-orange-500/50 rounded-xl">
-            <p className="text-sm text-gray-400 mb-1">Your account has been created with:</p>
-            <p className="text-xl font-bold text-orange-400 break-all">{urlEmail}</p>
-            <p className="text-xs text-gray-500 mt-2">This is the delivery email from your purchase. Use this email to log in.</p>
-          </div>
-        )}
+        {/* ---- Checkout Email Guide Image ---- */}
+        <div className="mb-8 rounded-xl overflow-hidden border border-gray-800">
+          <Image
+            src="/checkout-email-guide.jpg"
+            alt="WarriorPlus checkout — use your Delivery Email to create your AI Deck account"
+            width={640}
+            height={480}
+            className="w-full h-auto"
+            priority
+          />
+        </div>
 
-        {/* ---- Email Notification Card ---- */}
-        <div className="mb-8 p-5 bg-gray-900/60 border border-orange-500/30 rounded-xl">
+        {/* ---- Step 1: We already sent you an email ---- */}
+        <div className="mb-6 p-5 bg-gray-900/60 border border-orange-500/30 rounded-xl">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 mt-0.5">
               <svg className="w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -116,34 +111,53 @@ function ThankYouContent() {
               </svg>
             </div>
             <div>
-              <h2 className="font-semibold text-white text-lg mb-1">Check Your Email</h2>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                We&apos;ve sent {urlEmail ? <span className="text-orange-400 font-medium">{urlEmail}</span> : 'you'} an email with a link to <span className="text-orange-400 font-medium">set up your password</span> and access your account.
-                Check your inbox (and spam folder) for an email from AI Deck.
+              <h2 className="font-semibold text-white text-lg mb-2">We Already Sent You a Password Setup Email</h2>
+              <p className="text-gray-300 text-sm leading-relaxed mb-3">
+                Your account has been created using your <span className="text-orange-400 font-semibold">Delivery Email</span> from checkout.
+                Open the email from AI Deck and click the password setup link to get started.
               </p>
+              <div className="p-3 bg-yellow-900/20 border border-yellow-500/20 rounded-lg">
+                <p className="text-yellow-300 text-sm">
+                  Can&apos;t find it? <span className="font-semibold">Check your spam/junk folder.</span> The email may take a minute to arrive.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ---- Divider ---- */}
+        {/* ---- Login Button ---- */}
+        <Link
+          href="/login"
+          className="block w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-pink-600 transition duration-200 text-center mb-6"
+        >
+          Go to Login
+        </Link>
+
+        {/* ---- Divider: Can't find the email at all? ---- */}
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-800"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-3 bg-black text-gray-500">Or create your account right now</span>
+            <span className="px-3 bg-black text-gray-500">Can&apos;t find the email at all?</span>
           </div>
         </div>
 
-        {/* ---- Important Note ---- */}
-        <div className="mb-5 p-4 bg-yellow-900/15 border border-yellow-500/30 rounded-lg">
-          <p className="text-yellow-300 text-sm font-medium">
-            {urlEmail
-              ? <>Important: Your account email is <span className="text-white">{urlEmail}</span>. Make sure to use this exact email below so your credits are linked.</>
-              : 'Important: Use the same email you used for your purchase so your credits are linked to your account.'
-            }
-          </p>
-        </div>
+        {/* ---- Fallback: Create account manually ---- */}
+        {!showForm && !success && (
+          <div className="text-center">
+            <p className="text-gray-400 text-sm mb-4">
+              If you didn&apos;t receive the password setup email, you can create your account manually.
+              Make sure to use the same <span className="text-orange-400 font-medium">Delivery Email</span> you used at checkout.
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="py-3 px-6 bg-gray-900 border border-gray-700 text-gray-300 font-medium rounded-lg hover:bg-gray-800 hover:border-gray-600 transition duration-200"
+            >
+              Create Account Manually
+            </button>
+          </div>
+        )}
 
         {/* ---- Success Message ---- */}
         {success && (
@@ -157,10 +171,15 @@ function ThankYouContent() {
           </div>
         )}
 
-        {/* ---- Signup Form ---- */}
-        {!success && (
-          <form onSubmit={handleSignUp} className="space-y-5">
-            {/* Full Name */}
+        {/* ---- Signup Form (hidden until user clicks) ---- */}
+        {showForm && !success && (
+          <form onSubmit={handleSignUp} className="space-y-5 mt-6">
+            <div className="mb-4 p-3 bg-yellow-900/15 border border-yellow-500/30 rounded-lg">
+              <p className="text-yellow-300 text-sm font-medium">
+                Use the same Delivery Email you entered during checkout so your credits are linked to your account.
+              </p>
+            </div>
+
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
                 Full Name
@@ -170,29 +189,27 @@ function ThankYouContent() {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="John Doe"
+                placeholder="Your first or full name"
                 required
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
               />
             </div>
 
-            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address <span className="text-orange-400">(same as your purchase)</span>
+                Delivery Email <span className="text-orange-400">(same as checkout)</span>
               </label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="your-purchase-email@example.com"
+                placeholder="your-delivery-email@example.com"
                 required
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
               />
             </div>
 
-            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Choose a Password
@@ -209,14 +226,12 @@ function ThankYouContent() {
               />
             </div>
 
-            {/* Error */}
             {error && (
               <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
                 <p className="text-red-400 text-sm">{error}</p>
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
@@ -226,23 +241,6 @@ function ThankYouContent() {
             </button>
           </form>
         )}
-
-        {/* ---- Already have an account ---- */}
-        <div className="relative my-8">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-800"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-black text-gray-500">Already have an account?</span>
-          </div>
-        </div>
-
-        <Link
-          href="/login"
-          className="block w-full py-3 px-4 bg-gray-900 border border-gray-800 text-white font-semibold rounded-lg hover:bg-gray-800 transition duration-200 text-center"
-        >
-          Sign In to Your Account
-        </Link>
 
         {/* ---- Footer ---- */}
         <div className="mt-8 text-center text-sm">
@@ -255,7 +253,6 @@ function ThankYouContent() {
   );
 }
 
-// Wrapper with Suspense boundary (required for useSearchParams)
 export default function ThankYouPage() {
   return (
     <Suspense fallback={
