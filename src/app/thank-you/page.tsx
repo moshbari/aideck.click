@@ -59,7 +59,7 @@ function ThankYouContent() {
         ) {
           // Account exists — auto-send a password reset so the user can get in
           const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://aideck.click/auth/reset-password',
+            redirectTo: 'https://aideck.click/reset-password',
           });
           if (!resetErr) {
             setError(
@@ -78,7 +78,7 @@ function ThankYouContent() {
         if (msg.includes('database error') || msg.includes('saving new user')) {
           // Try sending a password reset instead
           const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://aideck.click/auth/reset-password',
+            redirectTo: 'https://aideck.click/reset-password',
           });
           if (!resetError) {
             setError(

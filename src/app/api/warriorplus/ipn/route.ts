@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
             type: 'recovery',
             email: buyerEmail,
             options: {
-              redirectTo: 'https://aideck.click/auth/reset-password',
+              redirectTo: 'https://aideck.click/reset-password',
             },
           });
 
