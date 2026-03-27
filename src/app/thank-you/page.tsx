@@ -84,9 +84,9 @@ function ThankYouContent() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-4xl font-bold mb-2">Thank You for Your Purchase!</h1>
+          <h1 className="text-4xl font-bold mb-2">Welcome to AI Deck!</h1>
           <p className="text-gray-400 text-lg">
-            Your AI Deck credits have been applied.
+            Your credits have been applied. Let&apos;s get you started.
           </p>
         </div>
 
