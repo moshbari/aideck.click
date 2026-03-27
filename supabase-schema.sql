@@ -44,6 +44,27 @@ CREATE TABLE IF NOT EXISTS aideck_credit_transactions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── PENDING PURCHASES TABLE ───
+-- Stores WarriorPlus purchases for users who haven't signed up yet.
+-- When they sign up with the same email, credits are auto-applied.
+CREATE TABLE IF NOT EXISTS aideck_pending_purchases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  buyer_name TEXT,
+  product_id TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  credits INTEGER NOT NULL,
+  is_pro BOOLEAN NOT NULL DEFAULT false,
+  sale_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  wp_sale_id TEXT,
+  wp_txn_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'applied', 'refunded')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_aideck_pending_email ON aideck_pending_purchases(email);
+CREATE INDEX IF NOT EXISTS idx_aideck_pending_status ON aideck_pending_purchases(status);
+
 -- ─── INDEXES ───
 CREATE INDEX IF NOT EXISTS idx_aideck_profiles_email ON aideck_profiles(email);
 CREATE INDEX IF NOT EXISTS idx_aideck_profiles_role ON aideck_profiles(role);
@@ -57,13 +78,50 @@ CREATE INDEX IF NOT EXISTS idx_aideck_credit_tx_user ON aideck_credit_transactio
 -- automatically create their aideck_profiles row
 CREATE OR REPLACE FUNCTION aideck_handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  pending RECORD;
+  total_credits INTEGER := 0;
+  should_be_pro BOOLEAN := false;
 BEGIN
+  -- 1. Create the profile
   INSERT INTO aideck_profiles (id, email, full_name)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', '')
   );
+
+  -- 2. Check for pending WarriorPlus purchases
+  FOR pending IN
+    SELECT * FROM aideck_pending_purchases
+    WHERE email = NEW.email AND status = 'pending'
+  LOOP
+    total_credits := total_credits + pending.credits;
+    IF pending.is_pro THEN
+      should_be_pro := true;
+    END IF;
+
+    -- Log the credit transaction
+    INSERT INTO aideck_credit_transactions (user_id, amount, type, description)
+    VALUES (
+      NEW.id,
+      pending.credits,
+      'purchase',
+      'Applied pending purchase: ' || pending.product_name || ' (W+ Sale #' || COALESCE(pending.wp_sale_id, '?') || ')'
+    );
+
+    -- Mark as applied
+    UPDATE aideck_pending_purchases SET status = 'applied' WHERE id = pending.id;
+  END LOOP;
+
+  -- 3. Apply accumulated credits and pro status
+  IF total_credits > 0 OR should_be_pro THEN
+    UPDATE aideck_profiles SET
+      credits = total_credits,
+      plan = CASE WHEN should_be_pro OR total_credits > 0 THEN 'pro' ELSE 'free' END
+    WHERE id = NEW.id;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
