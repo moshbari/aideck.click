@@ -52,13 +52,33 @@ function ThankYouContent() {
       });
 
       if (signUpError) {
+        const msg = signUpError.message?.toLowerCase() || '';
         if (
-          signUpError.message?.toLowerCase().includes('already registered') ||
-          signUpError.message?.toLowerCase().includes('already been registered')
+          msg.includes('already registered') ||
+          msg.includes('already been registered')
         ) {
           setError(
             'An account with this email already exists — we created it for you automatically! Check your email for the password setup link, or go to the login page and click "Forgot Password".'
           );
+          return;
+        }
+        // "Database error saving new user" typically means the auth user was
+        // already created by IPN but the profile trigger had an issue.
+        // Send a password reset so the user can still get in.
+        if (msg.includes('database error') || msg.includes('saving new user')) {
+          // Try sending a password reset instead
+          const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://aideck.click/auth/reset-password',
+          });
+          if (!resetError) {
+            setError(
+              'It looks like your account was already created during checkout! We just sent a password reset link to your email — use that to set your password and log in.'
+            );
+          } else {
+            setError(
+              'Your account may already exist. Please go to the login page and click "Forgot Password" to set up your password.'
+            );
+          }
           return;
         }
         setError(signUpError.message);
