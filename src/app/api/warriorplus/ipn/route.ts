@@ -81,7 +81,11 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // 5. Handle SALE
-    if (action === 'sale' && paymentStatus === 'Completed') {
+    // W+ sends status as "COMPLETED" (uppercase) — normalize for comparison
+    const normalizedAction = action?.toLowerCase();
+    const normalizedStatus = paymentStatus?.toLowerCase();
+
+    if (normalizedAction === 'sale' && normalizedStatus === 'completed') {
       // Split buyer name into first/last
       const nameParts = buyerName.trim().split(/\s+/);
       const firstName = nameParts[0] || '';
@@ -240,7 +244,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Handle REFUND
-    if (action === 'refund' || paymentStatus === 'Refunded') {
+    if (normalizedAction === 'refund' || normalizedStatus === 'refunded') {
       const { data: profile } = await supabase
         .from('aideck_profiles')
         .select('*')
