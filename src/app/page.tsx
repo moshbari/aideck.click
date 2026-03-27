@@ -210,6 +210,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      {/* WarriorPlus Tracking Pixels */}
+      <img src="https://warriorplus.com/o2/btn/pn100011001/m2qnrz/ymcjxw/461001" height="1" width="1" style={{ visibility: 'hidden', position: 'absolute' }} alt="" />
+      <img src="https://warriorplus.com/o2/btn/pn100011001/m2qnrz/ymcjxw/461002" height="1" width="1" style={{ visibility: 'hidden', position: 'absolute' }} alt="" />
+      <img src="https://warriorplus.com/o2/btn/pn100011001/m2qnrz/ymcjxw/461003" height="1" width="1" style={{ visibility: 'hidden', position: 'absolute' }} alt="" />
+      <img src="https://warriorplus.com/o2/btn/pn100011001/m2qnrz/ymcjxw/461000" height="1" width="1" style={{ visibility: 'hidden', position: 'absolute' }} alt="" />
+
       {/* Top Navigation */}
       <nav className="flex items-center justify-between px-6 py-4 border-b border-gray-900">
         <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-pink-500 bg-clip-text text-transparent">
@@ -556,9 +562,9 @@ export default function Home() {
                 No subscription ever
               </li>
             </ul>
-            <button className="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold hover:shadow-lg transition-shadow">
+            <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/fjh1d4" target="_blank" rel="noopener noreferrer" className="block w-full py-2 px-4 rounded-lg bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold hover:shadow-lg transition-shadow text-center">
               Get Pro Access
-            </button>
+            </a>
           </div>
 
           {/* Credit Packs */}
@@ -566,26 +572,35 @@ export default function Home() {
             <h3 className="text-2xl font-bold mb-2">Credit Packs</h3>
             <p className="text-gray-400 mb-6">Top up anytime</p>
             <div className="mb-8">
-              <span className="text-4xl font-bold">$5</span>
-              <span className="text-gray-400 ml-2">/ 20 credits</span>
+              <span className="text-4xl font-bold">$10</span>
+              <span className="text-gray-400 ml-2">/ 50 credits</span>
             </div>
-            <ul className="space-y-3 mb-8">
-              <li className="text-gray-300 flex items-center">
-                <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                50 credits — $10
-              </li>
-              <li className="text-gray-300 flex items-center">
-                <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                100 credits — $17
-              </li>
-              <li className="text-gray-300 flex items-center">
-                <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                250 credits — $35
-              </li>
-            </ul>
-            <button className="w-full py-2 px-4 rounded-lg border border-gray-700 text-white hover:bg-gray-800 transition-colors">
+            <div className="space-y-3 mb-8">
+              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/v2z309" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors group">
+                <span className="text-gray-300 flex items-center">
+                  <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
+                  50 credits
+                </span>
+                <span className="text-white font-semibold group-hover:text-orange-400 transition-colors">$10</span>
+              </a>
+              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/kbm5vk" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors group">
+                <span className="text-gray-300 flex items-center">
+                  <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
+                  100 credits
+                </span>
+                <span className="text-white font-semibold group-hover:text-orange-400 transition-colors">$17</span>
+              </a>
+              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/j2l652" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors group">
+                <span className="text-gray-300 flex items-center">
+                  <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
+                  250 credits
+                </span>
+                <span className="text-white font-semibold group-hover:text-orange-400 transition-colors">$35</span>
+              </a>
+            </div>
+            <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/v2z309" target="_blank" rel="noopener noreferrer" className="block w-full py-2 px-4 rounded-lg border border-gray-700 text-white hover:bg-gray-800 transition-colors text-center">
               Buy Credits
-            </button>
+            </a>
           </div>
         </div>
       </div>
