@@ -83,13 +83,14 @@ DECLARE
   total_credits INTEGER := 0;
   should_be_pro BOOLEAN := false;
 BEGIN
-  -- 1. Create the profile
+  -- 1. Create the profile (use ON CONFLICT to avoid duplicate errors)
   INSERT INTO aideck_profiles (id, email, full_name)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', '')
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
 
   -- 2. Check for pending WarriorPlus purchases
   FOR pending IN
@@ -122,6 +123,10 @@ BEGIN
     WHERE id = NEW.id;
   END IF;
 
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Log but don't fail — the IPN handler will create the profile as a fallback
+  RAISE WARNING '[aideck_handle_new_user] trigger error for %: % (SQLSTATE: %)', NEW.email, SQLERRM, SQLSTATE;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

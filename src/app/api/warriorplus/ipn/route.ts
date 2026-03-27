@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Wait a moment for the trigger to create the profile row
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         // Check if profile was created by the signup trigger
         const { data: newProfile } = await supabase
@@ -165,6 +165,33 @@ export async function POST(request: NextRequest) {
 
         if (newProfile) {
           userId = newProfile.id;
+        } else if (userId) {
+          // Trigger didn't create the profile (maybe it errored) — create it manually
+          console.log(`[W+ IPN] Trigger did not create profile for ${buyerEmail}, creating manually...`);
+          const { data: manualProfile, error: insertError } = await supabase
+            .from('aideck_profiles')
+            .insert({
+              id: userId,
+              email: buyerEmail,
+              full_name: buyerName || '',
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            // Profile might already exist with a different query path — try fetching by id
+            console.error(`[W+ IPN] Manual profile insert error: ${insertError.message}`);
+            const { data: profileById } = await supabase
+              .from('aideck_profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
+            if (profileById) {
+              console.log(`[W+ IPN] Found profile by id for ${buyerEmail}`);
+            }
+          } else if (manualProfile) {
+            console.log(`[W+ IPN] ✅ Manually created profile for ${buyerEmail}`);
+          }
         }
       }
 
