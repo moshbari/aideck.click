@@ -57,15 +57,23 @@ function ThankYouContent() {
           msg.includes('already registered') ||
           msg.includes('already been registered')
         ) {
-          // Account exists — auto-send a password reset so the user can get in
-          const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://aideck.click/reset-password',
-          });
-          if (!resetErr) {
-            setError(
-              'An account with this email already exists! We just sent a password reset link to your email — use it to set your password and log in.'
-            );
-          } else {
+          // Account exists — send password reset via GHL (server-side API)
+          try {
+            const res = await fetch('/api/auth/forgot-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
+            });
+            if (res.ok) {
+              setError(
+                'An account with this email already exists! We just sent a password reset link to your email — use it to set your password and log in.'
+              );
+            } else {
+              setError(
+                'An account with this email already exists. Please go to the login page and click "Forgot Password" to set up your password.'
+              );
+            }
+          } catch {
             setError(
               'An account with this email already exists. Please go to the login page and click "Forgot Password" to set up your password.'
             );
@@ -74,17 +82,24 @@ function ThankYouContent() {
         }
         // "Database error saving new user" typically means the auth user was
         // already created by IPN but the profile trigger had an issue.
-        // Send a password reset so the user can still get in.
+        // Send a password reset via GHL so the user can still get in.
         if (msg.includes('database error') || msg.includes('saving new user')) {
-          // Try sending a password reset instead
-          const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://aideck.click/reset-password',
-          });
-          if (!resetError) {
-            setError(
-              'It looks like your account was already created during checkout! We just sent a password reset link to your email — use that to set your password and log in.'
-            );
-          } else {
+          try {
+            const res = await fetch('/api/auth/forgot-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
+            });
+            if (res.ok) {
+              setError(
+                'It looks like your account was already created during checkout! We just sent a password reset link to your email — use that to set your password and log in.'
+              );
+            } else {
+              setError(
+                'Your account may already exist. Please go to the login page and click "Forgot Password" to set up your password.'
+              );
+            }
+          } catch {
             setError(
               'Your account may already exist. Please go to the login page and click "Forgot Password" to set up your password.'
             );
