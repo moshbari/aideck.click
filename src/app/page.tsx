@@ -570,37 +570,50 @@ export default function Home() {
           {/* Credit Packs */}
           <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
             <h3 className="text-2xl font-bold mb-2">Credit Packs</h3>
-            <p className="text-gray-400 mb-6">Top up anytime</p>
-            <div className="mb-8">
-              <span className="text-4xl font-bold">$10</span>
-              <span className="text-gray-400 ml-2">/ 50 credits</span>
+            <p className="text-gray-400 mb-3">Pick your pack. Click to buy.</p>
+            <p className="text-xs text-gray-500 mb-6">1 credit = 1 presentation. The bigger the pack, the more you save.</p>
+
+            <div className="space-y-3">
+              {/* 50 Credits — Base */}
+              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/v2z309" target="_blank" rel="noopener noreferrer" className="block p-4 rounded-xl border border-gray-700 hover:border-orange-500/50 bg-gray-800/40 hover:bg-gray-800 transition-all group">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-white font-bold text-lg">50 Credits</span>
+                    <p className="text-gray-500 text-xs mt-0.5">$0.20 per credit</p>
+                  </div>
+                  <span className="text-white font-bold text-xl group-hover:text-orange-400 transition-colors">$10</span>
+                </div>
+              </a>
+
+              {/* 100 Credits — Save 15% */}
+              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/kbm5vk" target="_blank" rel="noopener noreferrer" className="block p-4 rounded-xl border border-gray-700 hover:border-orange-500/50 bg-gray-800/40 hover:bg-gray-800 transition-all group">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold text-lg">100 Credits</span>
+                      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full uppercase tracking-wide">Save 15%</span>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-0.5"><span className="line-through">$20</span> <span className="text-green-400 font-medium">You save $3</span></p>
+                  </div>
+                  <span className="text-white font-bold text-xl group-hover:text-orange-400 transition-colors">$17</span>
+                </div>
+              </a>
+
+              {/* 250 Credits — Best Deal, Save 30% */}
+              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/j2l652" target="_blank" rel="noopener noreferrer" className="relative block p-4 rounded-xl border-2 border-orange-500/60 bg-gradient-to-r from-orange-500/10 to-pink-500/10 hover:from-orange-500/20 hover:to-pink-500/20 transition-all group overflow-hidden">
+                <div className="absolute top-0 right-0 bg-gradient-to-r from-orange-500 to-pink-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Best Deal</div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold text-lg">250 Credits</span>
+                      <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full uppercase tracking-wide">Save 30%</span>
+                    </div>
+                    <p className="text-gray-400 text-xs mt-0.5"><span className="line-through">$50</span> <span className="text-green-400 font-semibold">You save $15!</span></p>
+                  </div>
+                  <span className="text-white font-bold text-2xl group-hover:text-orange-400 transition-colors">$35</span>
+                </div>
+              </a>
             </div>
-            <div className="space-y-3 mb-8">
-              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/v2z309" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors group">
-                <span className="text-gray-300 flex items-center">
-                  <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                  50 credits
-                </span>
-                <span className="text-white font-semibold group-hover:text-orange-400 transition-colors">$10</span>
-              </a>
-              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/kbm5vk" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors group">
-                <span className="text-gray-300 flex items-center">
-                  <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                  100 credits
-                </span>
-                <span className="text-white font-semibold group-hover:text-orange-400 transition-colors">$17</span>
-              </a>
-              <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/j2l652" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors group">
-                <span className="text-gray-300 flex items-center">
-                  <span className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mr-3 shrink-0"></span>
-                  250 credits
-                </span>
-                <span className="text-white font-semibold group-hover:text-orange-400 transition-colors">$35</span>
-              </a>
-            </div>
-            <a href="https://warriorplus.com/o2/buy/m2qnrz/ymcjxw/v2z309" target="_blank" rel="noopener noreferrer" className="block w-full py-2 px-4 rounded-lg border border-gray-700 text-white hover:bg-gray-800 transition-colors text-center">
-              Buy Credits
-            </a>
           </div>
         </div>
       </div>
