@@ -61,7 +61,8 @@ function validateGenerateRequest(body: any): { valid: boolean; error?: string } 
 async function callClaudeAPI(
   prompt: string,
   tone: string,
-  numberOfSlides: number
+  numberOfSlides: number,
+  animations: boolean
 ): Promise<PresentationStructure> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -70,36 +71,74 @@ async function callClaudeAPI(
 
   const anthropic = new Anthropic({ apiKey });
 
-  const systemPrompt = `You are an expert presentation designer. Your task is to create a structured presentation outline based on the user's prompt.
+  const animationInstructions = animations
+    ? `SPEAKER NOTES WITH CLICK CUES:
+- The presentation uses click-based animations where each bullet point appears one at a time when the presenter clicks.
+- Write speaker notes that include [CLICK] before each new point so the presenter knows when to click.
+- Format: Start with a brief intro sentence (visible on slide load), then [CLICK] before each bullet point's talking point.
+- Example format:
+  "Let's look at the key challenges.
 
-IMPORTANT REQUIREMENTS:
-1. Return ONLY valid JSON with no markdown formatting, no code blocks, no extra text
-2. The JSON must contain a "title" field and a "slides" array
-3. Each slide must have: type, title, speakerNotes (required fields)
-4. Optional fields: subtitle, points
-5. Valid slide types: "title", "content", "comparison", "closing"
-6. Keep titles concise (max 8 words for slide titles)
-7. Keep bullet points short (max 8 words each)
-8. Write natural, flowing speaker notes as talking points for the presenter. Do NOT include [CLICK] cues, animation references, or transition instructions — the slides use smooth automatic transitions, not click-based animations. Speaker notes should read like a natural script the presenter can follow.
-9. Adjust reading level and vocabulary to match the tone: "${tone}"
+  [CLICK] First, the cost of getting started is higher than most people expect. You need to budget for tools before you earn anything.
 
-STRUCTURE GUIDELINES:
-- First slide must be type "title" with main topic as title
-- Middle slides should be type "content" with 4-6 bullet points in the "points" array
-- Include one "comparison" slide if appropriate
-- Last slide must be type "closing" with a call-to-action
+  [CLICK] Second, the learning curve is steep. Each skill takes months to develop."
+- Each [CLICK] paragraph should be 1-3 sentences that expand on the bullet point shown on screen.`
+    : `SPEAKER NOTES (NO ANIMATION CUES):
+- Write speaker notes as a flowing, natural script the presenter can read aloud.
+- Do NOT include [CLICK], animation references, or transition cues.
+- Write in clear paragraphs. Each paragraph covers one key idea from the slide.
+- The notes should read like a conversation — as if the presenter is talking to the audience naturally.`;
 
-TONE SPECIFICS (Reading Level):
-- professional: Business language, industry terms acceptable, 10th grade+
-- casual: Conversational, accessible language, 8th grade level
-- academic: Formal, technical depth, specialized terminology, college level
-- creative: Imaginative, engaging descriptions, varied sentence structure
-- inspirational: Motivational language, powerful statements, uplifting tone
-- technical: Precise terminology, detailed explanations, expert audience
+  const systemPrompt = `You are an expert presentation designer. Create a structured presentation outline from the user's prompt.
 
-Generate exactly ${numberOfSlides} slides total.
+CRITICAL: Return ONLY valid JSON. No markdown, no code blocks, no extra text.
 
-Return the JSON object directly with no additional text.`;
+JSON FORMAT:
+{
+  "title": "Presentation Title",
+  "slides": [
+    {
+      "type": "title|content|comparison|closing",
+      "title": "Slide Title",
+      "subtitle": "Optional subtitle (title and closing slides only)",
+      "points": ["Point 1", "Point 2", "..."],
+      "speakerNotes": "Full presenter script for this slide..."
+    }
+  ]
+}
+
+SLIDE RULES:
+1. Generate exactly ${numberOfSlides} slides total
+2. First slide: type "title" — main topic as title, optional subtitle
+3. Middle slides: type "content" — 4-6 bullet points in "points" array
+4. You may include one "comparison" slide if it fits the topic
+5. Last slide: type "closing" — strong ending or call-to-action
+6. Titles: max 8 words, clear and direct
+7. Bullet points: max 10 words each, punchy and scannable
+
+READING LEVEL — IMPORTANT:
+- ALL speaker notes MUST be written at a 5th grade reading level
+- Use short sentences. Use simple words. Avoid jargon unless the topic requires it.
+- Break complex ideas into small, easy-to-understand pieces.
+- Write like you're explaining to someone who is smart but new to the topic.
+
+${animationInstructions}
+
+TONE: "${tone}"
+- professional: Clean, clear business language. Still keep it at 5th grade reading level in notes.
+- casual: Friendly and conversational. Like talking to a friend.
+- creative: Vivid descriptions, colorful language, still simple and clear.
+- academic: Can use topic-specific terms but explain them simply in notes.
+- inspirational: Motivating, powerful short statements. Emotional and direct.
+- technical: Precise terms allowed but notes should still be easy to follow.
+
+QUALITY GUIDELINES:
+- Each slide should have substantial speaker notes (3-8 sentences minimum)
+- Notes should add value beyond what's on the slide — explain, give examples, tell stories
+- The presenter should be able to present for 1-2 minutes per slide using just the notes
+- Write notes in proper paragraphs with line breaks between ideas
+
+Return the JSON object directly.`;
 
   try {
     const message = await anthropic.messages.create({
@@ -193,12 +232,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { prompt, tone, slides, colorTheme } = body;
+    const { prompt, tone, slides, colorTheme, animations } = body;
+    const enableAnimations = animations === true;
 
     // Call Claude to generate structure
     let structure: PresentationStructure;
     try {
-      structure = await callClaudeAPI(prompt, tone, slides);
+      structure = await callClaudeAPI(prompt, tone, slides, enableAnimations);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Claude API error:', errorMessage);
@@ -211,7 +251,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Generate PPTX
     let pptxBuffer: Buffer;
     try {
-      pptxBuffer = await generatePptx(structure, colorTheme);
+      pptxBuffer = await generatePptx(structure, colorTheme, enableAnimations);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('PPTX generation error:', errorMessage);

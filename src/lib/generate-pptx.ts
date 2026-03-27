@@ -1,5 +1,10 @@
 import PptxGenJS from 'pptxgenjs';
+import JSZip from 'jszip';
 import { PresentationStructure, SlideData, ColorTheme, ColorThemeName } from './types';
+
+// Track how many content cards (animated elements) each slide has
+// Key: slide index (0-based), Value: number of animated card groups
+const slideCardCounts: Map<number, number> = new Map();
 
 const COLOR_THEMES: Record<ColorThemeName, ColorTheme> = {
   'navy-gold': {
@@ -107,7 +112,8 @@ function addTitleSlide(
 function addContentSlide(
   pres: PptxGenJS,
   slide: SlideData,
-  theme: ColorTheme
+  theme: ColorTheme,
+  slideIndex: number
 ): void {
   const contentSlide = pres.addSlide();
   contentSlide.background = { color: 'FFFFFF' };
@@ -145,6 +151,8 @@ function addContentSlide(
   const cardHeight = (SLIDE_HEIGHT - 1.2 - 2 * MARGIN) / rowCount;
   const cardGap = 0.15;
 
+  // Track: static elements added so far = stripe(1) + title(1) = 2 shapes before cards
+  // Each card = 2 shapes (background rect + text)
   points.forEach((point, index) => {
     const col = index % colCount;
     const row = Math.floor(index / colCount);
@@ -178,6 +186,9 @@ function addContentSlide(
       wrap: true,
     });
   });
+
+  // Track card count for animation post-processing
+  slideCardCounts.set(slideIndex, points.length);
 
   // Speaker notes
   contentSlide.addNotes(slide.speakerNotes);
@@ -371,23 +382,179 @@ function addClosingSlide(
   closingSlide.addNotes(slide.speakerNotes);
 }
 
+/**
+ * Generate "Appear on Click" animation XML for a slide.
+ * Each card group (bg rect + text) appears together on one click.
+ * staticCount = number of shapes before the animated cards start.
+ * cardCount = number of card groups (each group = 2 shapes: rect + text).
+ */
+function buildAnimationTimingXml(
+  shapeIds: number[],
+  staticCount: number,
+  cardCount: number
+): string {
+  let ctnId = 1;
+  const nextId = () => ++ctnId;
+
+  let clickParBlocks = '';
+  for (let card = 0; card < cardCount; card++) {
+    // Each card = 2 shapes (background + text), starting after static shapes
+    const bgShapeIdx = staticCount + card * 2;
+    const textShapeIdx = staticCount + card * 2 + 1;
+
+    const bgSpId = shapeIds[bgShapeIdx];
+    const textSpId = shapeIds[textShapeIdx];
+    if (!bgSpId || !textSpId) continue;
+
+    const outerParId = nextId();
+
+    // Background shape — clickEffect (triggers on click)
+    const bgInnerId = nextId();
+    const bgEffectId = nextId();
+    const bgSetId = nextId();
+
+    // Text shape — withEffect (appears simultaneously)
+    const txtInnerId = nextId();
+    const txtEffectId = nextId();
+    const txtSetId = nextId();
+
+    clickParBlocks += `
+      <p:par>
+        <p:cTn id="${outerParId}" fill="hold">
+          <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+          <p:childTnLst>
+            <p:par>
+              <p:cTn id="${bgInnerId}" fill="hold">
+                <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+                <p:childTnLst>
+                  <p:par>
+                    <p:cTn id="${bgEffectId}" presetID="1" presetClass="entr" presetSubtype="0" fill="hold" nodeType="clickEffect">
+                      <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+                      <p:childTnLst>
+                        <p:set>
+                          <p:cBhvr>
+                            <p:cTn id="${bgSetId}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn>
+                            <p:tgtEl><p:spTgt spid="${bgSpId}"/></p:tgtEl>
+                            <p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst>
+                          </p:cBhvr>
+                          <p:to><p:strVal val="visible"/></p:to>
+                        </p:set>
+                      </p:childTnLst>
+                    </p:cTn>
+                  </p:par>
+                </p:childTnLst>
+              </p:cTn>
+            </p:par>
+            <p:par>
+              <p:cTn id="${txtInnerId}" fill="hold">
+                <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+                <p:childTnLst>
+                  <p:par>
+                    <p:cTn id="${txtEffectId}" presetID="1" presetClass="entr" presetSubtype="0" fill="hold" nodeType="withEffect">
+                      <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+                      <p:childTnLst>
+                        <p:set>
+                          <p:cBhvr>
+                            <p:cTn id="${txtSetId}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn>
+                            <p:tgtEl><p:spTgt spid="${textSpId}"/></p:tgtEl>
+                            <p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst>
+                          </p:cBhvr>
+                          <p:to><p:strVal val="visible"/></p:to>
+                        </p:set>
+                      </p:childTnLst>
+                    </p:cTn>
+                  </p:par>
+                </p:childTnLst>
+              </p:cTn>
+            </p:par>
+          </p:childTnLst>
+        </p:cTn>
+      </p:par>`;
+  }
+
+  const mainSeqId = nextId();
+  return `
+    <p:timing>
+      <p:tnLst>
+        <p:par>
+          <p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot">
+            <p:childTnLst>
+              <p:seq concurrent="1" nextAc="seek">
+                <p:cTn id="${mainSeqId}" dur="indefinite" nodeType="mainSeq">
+                  <p:childTnLst>${clickParBlocks}</p:childTnLst>
+                </p:cTn>
+                <p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>
+                <p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst>
+              </p:seq>
+            </p:childTnLst>
+          </p:cTn>
+        </p:par>
+      </p:tnLst>
+    </p:timing>`;
+}
+
+/**
+ * Post-process the PPTX buffer to inject click-based "Appear" animations
+ * into content slides that have card groups.
+ */
+async function injectAnimations(buffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+
+  for (const [slideIndex, cardCount] of slideCardCounts.entries()) {
+    if (cardCount <= 0) continue;
+
+    const slideFile = `ppt/slides/slide${slideIndex + 1}.xml`;
+    const fileEntry = zip.file(slideFile);
+    if (!fileEntry) continue;
+
+    const xml = await fileEntry.async('string');
+
+    // Extract all shape IDs in order
+    const spBlocks = xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || [];
+    const shapeIds = spBlocks
+      .map((block) => {
+        const match = block.match(/<p:cNvPr id="(\d+)"/);
+        return match ? parseInt(match[1]) : null;
+      })
+      .filter((id): id is number => id !== null);
+
+    // Content slides have: stripe(1 shape) + title(1 shape) = 2 static shapes before cards
+    const staticCount = 2;
+    const timingXml = buildAnimationTimingXml(shapeIds, staticCount, cardCount);
+
+    // Remove any existing timing, then inject new
+    let newXml = xml.replace(/<p:timing>[\s\S]*?<\/p:timing>/, '');
+    newXml = newXml.replace('</p:sld>', timingXml + '</p:sld>');
+
+    zip.file(slideFile, newXml);
+  }
+
+  const outputBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+  return Buffer.from(outputBuffer) as Buffer<ArrayBuffer>;
+}
+
 export async function generatePptx(
   structure: PresentationStructure,
-  colorTheme: string
+  colorTheme: string,
+  animations: boolean = false
 ): Promise<Buffer> {
+  // Clear tracking from previous runs
+  slideCardCounts.clear();
+
   const theme = getTheme(colorTheme);
 
   const pres = new PptxGenJS();
   pres.defineLayout({ name: 'default', width: SLIDE_WIDTH, height: SLIDE_HEIGHT });
 
-  // Add all slides
+  // Add all slides — track index for animation mapping
+  let slideIndex = 0;
   for (const slide of structure.slides) {
     switch (slide.type) {
       case 'title':
         addTitleSlide(pres, slide, theme);
         break;
       case 'content':
-        addContentSlide(pres, slide, theme);
+        addContentSlide(pres, slide, theme, slideIndex);
         break;
       case 'comparison':
         addComparisonSlide(pres, slide, theme);
@@ -396,11 +563,19 @@ export async function generatePptx(
         addClosingSlide(pres, slide, theme);
         break;
       default:
-        addContentSlide(pres, slide, theme);
+        addContentSlide(pres, slide, theme, slideIndex);
     }
+    slideIndex++;
   }
 
-  // Generate and return buffer
+  // Generate base buffer
   const arrayBuffer = await pres.write({ outputType: 'arraybuffer' });
-  return Buffer.from(arrayBuffer as ArrayBuffer);
+  let buffer = Buffer.from(arrayBuffer as ArrayBuffer);
+
+  // If animations enabled, post-process to inject click-based animations
+  if (animations) {
+    buffer = await injectAnimations(buffer) as Buffer<ArrayBuffer>;
+  }
+
+  return buffer;
 }

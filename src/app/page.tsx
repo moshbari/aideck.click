@@ -31,6 +31,7 @@ export default function Home() {
   const [toneIndex, setToneIndex] = useState(0);
   const [slides, setSlides] = useState(10);
   const [colorIndex, setColorIndex] = useState(0);
+  const [animations, setAnimations] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [generatedFile, setGeneratedFile] = useState<string | null>(null);
@@ -64,6 +65,7 @@ export default function Home() {
           tone: TONE_OPTIONS[toneIndex].value,
           slides,
           colorTheme: COLOR_OPTIONS[colorIndex].value,
+          animations,
         }),
       });
 
@@ -192,6 +194,31 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Options Row 4: Click Animations */}
+        <div className="mb-10">
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative mt-0.5">
+              <input
+                type="checkbox"
+                checked={animations}
+                onChange={(e) => setAnimations(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-800 border border-gray-700 rounded-full peer-checked:bg-gradient-to-r peer-checked:from-orange-500 peer-checked:to-pink-500 transition-all"></div>
+              <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-gray-400 rounded-full peer-checked:translate-x-5 peer-checked:bg-white transition-all"></div>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-gray-300 group-hover:text-white transition-colors">
+                Click Animations & Presenter Cues
+              </span>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                Elements appear one-by-one on each click. Presenter notes include [CLICK] cues matching each animation.
+                <span className="text-orange-400 ml-1">Uses more API credits.</span>
+              </p>
+            </div>
+          </label>
+        </div>
+
         {/* Error message */}
         {error && (
           <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-xl text-red-300 text-sm">
@@ -233,6 +260,7 @@ export default function Home() {
                 setPrompt('');
                 setLoadingMessageIndex(0);
                 setError(null);
+                setAnimations(false);
               }}
               className="flex-1 py-4 px-6 rounded-xl font-bold text-lg bg-gray-900 border border-gray-800 text-white hover:border-gray-700 transition-all"
             >
