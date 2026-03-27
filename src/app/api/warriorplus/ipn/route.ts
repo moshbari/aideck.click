@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
           } else if (linkError) {
             console.error(`[W+ IPN] Error generating link: ${linkError.message}`);
             // Fallback: user can use "Forgot Password" on the login page
-            passwordSetupLink = 'https://aideck.click/auth/login';
+            passwordSetupLink = 'https://aideck.click/login';
           }
         }
 
@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
               last_name: lastName,
               product_name: product.name,
               credits: product.credits,
-              password_setup_link: passwordSetupLink || 'https://aideck.click/auth/login',
+              password_setup_link: passwordSetupLink || 'https://aideck.click/login',
               sale_amount: saleAmount,
               wp_sale_id: saleId,
             }),
