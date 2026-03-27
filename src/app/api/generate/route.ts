@@ -80,7 +80,7 @@ IMPORTANT REQUIREMENTS:
 5. Valid slide types: "title", "content", "comparison", "closing"
 6. Keep titles concise (max 8 words for slide titles)
 7. Keep bullet points short (max 8 words each)
-8. Write natural speaker notes that include [CLICK] cues for transitions
+8. Write natural, flowing speaker notes as talking points for the presenter. Do NOT include [CLICK] cues, animation references, or transition instructions — the slides use smooth automatic transitions, not click-based animations. Speaker notes should read like a natural script the presenter can follow.
 9. Adjust reading level and vocabulary to match the tone: "${tone}"
 
 STRUCTURE GUIDELINES:

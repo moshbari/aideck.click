@@ -111,7 +111,6 @@ function addContentSlide(
 ): void {
   const contentSlide = pres.addSlide();
   contentSlide.background = { color: 'FFFFFF' };
-
   // Left colored stripe
   contentSlide.addShape(pres.ShapeType.rect, {
     x: 0,
@@ -191,7 +190,6 @@ function addComparisonSlide(
 ): void {
   const comparisonSlide = pres.addSlide();
   comparisonSlide.background = { color: 'FFFFFF' };
-
   // Left colored stripe
   comparisonSlide.addShape(pres.ShapeType.rect, {
     x: 0,
@@ -319,7 +317,6 @@ function addClosingSlide(
 ): void {
   const closingSlide = pres.addSlide();
   closingSlide.background = { color: theme.primary };
-
   // Decorative circles
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: -0.3,
