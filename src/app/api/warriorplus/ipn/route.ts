@@ -6,7 +6,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
  *
  * When a customer buys through WarriorPlus, W+ POSTs transaction data here.
  * We verify the security key, then:
- *   - SALE: upgrade the user's plan / add credits
+ *   - SALE: find or auto-create user, upgrade plan / add credits,
+ *           POST to GoHighLevel webhook to trigger welcome email
  *   - REFUND: reverse the credits / downgrade
  *
  * Product mapping (WP_ITEM_NUMBER → action):
@@ -23,6 +24,9 @@ const PRODUCT_MAP: Record<string, { credits: number; name: string; isPro: boolea
   '461002': { credits: 100, name: 'AI Deck 100 Credits', isPro: false },
   '461003': { credits: 250, name: 'AI Deck 250 Credits', isPro: false },
 };
+
+// GoHighLevel Inbound Webhook URL for AIDeck Welcome Email workflow
+const GHL_WEBHOOK_URL = process.env.GHL_WEBHOOK_URL || '';
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,59 +81,160 @@ export async function POST(request: NextRequest) {
 
     // 5. Handle SALE
     if (action === 'sale' && paymentStatus === 'Completed') {
-      // Find user by email
+      // Split buyer name into first/last
+      const nameParts = buyerName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Find user by email in aideck_profiles
       const { data: profile } = await supabase
         .from('aideck_profiles')
         .select('*')
         .eq('email', buyerEmail)
         .single();
 
-      if (profile) {
-        // User exists — update their profile
-        const updates: Record<string, unknown> = {
-          credits: profile.credits + product.credits,
-        };
+      let userId = profile?.id;
+      let isNewAccount = false;
+      let passwordSetupLink = '';
 
-        // If this is the Gold/Pro product, upgrade plan
-        if (product.isPro) {
-          updates.plan = 'pro';
-        }
-        // Credit packs also upgrade to pro (they paid, they deserve full access)
-        if (profile.plan === 'free') {
-          updates.plan = 'pro';
-        }
+      if (!profile) {
+        // User NOT found — auto-create a Supabase account
+        console.log(`[W+ IPN] Creating Supabase account for ${buyerEmail}...`);
 
-        await supabase
-          .from('aideck_profiles')
-          .update(updates)
-          .eq('id', profile.id);
-
-        // Log the credit transaction
-        await supabase.from('aideck_credit_transactions').insert({
-          user_id: profile.id,
-          amount: product.credits,
-          type: 'purchase',
-          description: `${product.name} — W+ Sale #${saleId} ($${saleAmount})`,
-        });
-
-        console.log(`[W+ IPN] ✅ Added ${product.credits} credits to ${buyerEmail} (${product.name})`);
-      } else {
-        // User NOT found — store as pending purchase
-        // When they sign up with this email, credits will be applied
-        await supabase.from('aideck_pending_purchases').insert({
+        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
           email: buyerEmail,
-          buyer_name: buyerName,
-          product_id: itemNumber,
-          product_name: product.name,
-          credits: product.credits,
-          is_pro: product.isPro,
-          sale_amount: parseFloat(saleAmount),
-          wp_sale_id: saleId,
-          wp_txn_id: txnId,
-          status: 'pending',
+          email_confirm: true, // auto-confirm so they can log in immediately after setting password
+          user_metadata: {
+            full_name: buyerName,
+            source: 'warriorplus',
+          },
         });
 
-        console.log(`[W+ IPN] ⏳ Stored pending purchase for ${buyerEmail} (${product.name}) — user not found yet`);
+        if (createError) {
+          // If user already exists in auth but not in profiles, look them up
+          if (createError.message?.includes('already been registered')) {
+            const { data: { users } } = await supabase.auth.admin.listUsers();
+            const existingUser = users?.find(u => u.email === buyerEmail);
+            if (existingUser) {
+              userId = existingUser.id;
+              console.log(`[W+ IPN] Found existing auth user ${buyerEmail}, id: ${userId}`);
+            }
+          } else {
+            console.error(`[W+ IPN] Error creating user: ${createError.message}`);
+          }
+        } else if (newUser?.user) {
+          userId = newUser.user.id;
+          isNewAccount = true;
+          console.log(`[W+ IPN] ✅ Created Supabase account for ${buyerEmail}, id: ${userId}`);
+        }
+
+        // Generate a password setup link (magic link / recovery link)
+        if (userId) {
+          const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+            type: 'recovery',
+            email: buyerEmail,
+            options: {
+              redirectTo: 'https://aideck.click/auth/reset-password',
+            },
+          });
+
+          if (linkData?.properties?.action_link) {
+            passwordSetupLink = linkData.properties.action_link;
+            console.log(`[W+ IPN] Generated password setup link for ${buyerEmail}`);
+          } else if (linkError) {
+            console.error(`[W+ IPN] Error generating link: ${linkError.message}`);
+            // Fallback: user can use "Forgot Password" on the login page
+            passwordSetupLink = 'https://aideck.click/auth/login';
+          }
+        }
+
+        // Wait a moment for the trigger to create the profile row
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Check if profile was created by the signup trigger
+        const { data: newProfile } = await supabase
+          .from('aideck_profiles')
+          .select('*')
+          .eq('email', buyerEmail)
+          .single();
+
+        if (newProfile) {
+          userId = newProfile.id;
+        }
+      }
+
+      // Now apply credits and upgrade
+      if (userId) {
+        // Re-fetch profile to get latest data
+        const { data: currentProfile } = await supabase
+          .from('aideck_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (currentProfile) {
+          const updates: Record<string, unknown> = {
+            credits: currentProfile.credits + product.credits,
+          };
+
+          // Upgrade to pro for any paid product
+          if (product.isPro || currentProfile.plan === 'free') {
+            updates.plan = 'pro';
+          }
+
+          await supabase
+            .from('aideck_profiles')
+            .update(updates)
+            .eq('id', userId);
+
+          // Log the credit transaction
+          await supabase.from('aideck_credit_transactions').insert({
+            user_id: userId,
+            amount: product.credits,
+            type: 'purchase',
+            description: `${product.name} — W+ Sale #${saleId} ($${saleAmount})`,
+          });
+
+          console.log(`[W+ IPN] ✅ Added ${product.credits} credits to ${buyerEmail} (${product.name})`);
+        }
+      }
+
+      // Also store in pending_purchases as a receipt/backup
+      await supabase.from('aideck_pending_purchases').insert({
+        email: buyerEmail,
+        buyer_name: buyerName,
+        product_id: itemNumber,
+        product_name: product.name,
+        credits: product.credits,
+        is_pro: product.isPro,
+        sale_amount: parseFloat(saleAmount),
+        wp_sale_id: saleId,
+        wp_txn_id: txnId,
+        status: userId ? 'applied' : 'pending',
+      });
+
+      // POST to GoHighLevel webhook to trigger welcome email
+      if (GHL_WEBHOOK_URL && (isNewAccount || !profile)) {
+        try {
+          const ghlResponse = await fetch(GHL_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: buyerEmail,
+              first_name: firstName,
+              last_name: lastName,
+              product_name: product.name,
+              credits: product.credits,
+              password_setup_link: passwordSetupLink || 'https://aideck.click/auth/login',
+              sale_amount: saleAmount,
+              wp_sale_id: saleId,
+            }),
+          });
+          console.log(`[W+ IPN] GHL webhook response: ${ghlResponse.status}`);
+        } catch (ghlError) {
+          console.error('[W+ IPN] GHL webhook error:', ghlError);
+          // Don't fail the IPN — email is nice-to-have, not critical
+        }
       }
     }
 
