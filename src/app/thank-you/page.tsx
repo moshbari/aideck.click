@@ -90,18 +90,6 @@ function ThankYouContent() {
           </p>
         </div>
 
-        {/* ---- Checkout Email Guide Image ---- */}
-        <div className="mb-8 rounded-xl overflow-hidden border border-gray-800">
-          <Image
-            src="/checkout-email-guide.jpg"
-            alt="WarriorPlus checkout — use your Delivery Email to create your AI Deck account"
-            width={640}
-            height={480}
-            className="w-full h-auto"
-            priority
-          />
-        </div>
-
         {/* ---- Step 1: We already sent you an email ---- */}
         <div className="mb-6 p-5 bg-gray-900/60 border border-orange-500/30 rounded-xl">
           <div className="flex items-start gap-3">
@@ -145,17 +133,31 @@ function ThankYouContent() {
 
         {/* ---- Fallback: Create account manually ---- */}
         {!showForm && !success && (
-          <div className="text-center">
-            <p className="text-gray-400 text-sm mb-4">
+          <div>
+            <p className="text-gray-400 text-sm mb-4 text-center">
               If you didn&apos;t receive the password setup email, you can create your account manually.
               Make sure to use the same <span className="text-orange-400 font-medium">Delivery Email</span> you used at checkout.
             </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="py-3 px-6 bg-gray-900 border border-gray-700 text-gray-300 font-medium rounded-lg hover:bg-gray-800 hover:border-gray-600 transition duration-200"
-            >
-              Create Account Manually
-            </button>
+
+            {/* ---- Checkout Email Guide Image ---- */}
+            <div className="mb-6 rounded-xl overflow-hidden border border-gray-800">
+              <Image
+                src="/checkout-email-guide.jpg"
+                alt="WarriorPlus checkout — use your Delivery Email to create your AI Deck account"
+                width={640}
+                height={480}
+                className="w-full h-auto"
+              />
+            </div>
+
+            <div className="text-center">
+              <button
+                onClick={() => setShowForm(true)}
+                className="py-3 px-8 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200"
+              >
+                Create Account Manually
+              </button>
+            </div>
           </div>
         )}
 
@@ -174,7 +176,7 @@ function ThankYouContent() {
         {/* ---- Signup Form (hidden until user clicks) ---- */}
         {showForm && !success && (
           <form onSubmit={handleSignUp} className="space-y-5 mt-6">
-            <div className="mb-4 p-3 bg-yellow-900/15 border border-yellow-500/30 rounded-lg">
+            <div className="p-3 bg-yellow-900/15 border border-yellow-500/30 rounded-lg">
               <p className="text-yellow-300 text-sm font-medium">
                 Use the same Delivery Email you entered during checkout so your credits are linked to your account.
               </p>
