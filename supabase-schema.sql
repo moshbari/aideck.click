@@ -74,6 +74,16 @@ CREATE TRIGGER aideck_on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION aideck_handle_new_user();
 
+-- ─── ADMIN HELPER FUNCTION ───
+-- SECURITY DEFINER to avoid infinite recursion in RLS policies
+-- (admin policies on aideck_profiles can't self-reference aideck_profiles)
+CREATE OR REPLACE FUNCTION aideck_is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM aideck_profiles WHERE id = auth.uid() AND role = 'admin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 -- ─── ROW LEVEL SECURITY ───
 ALTER TABLE aideck_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aideck_generations ENABLE ROW LEVEL SECURITY;
@@ -86,11 +96,7 @@ CREATE POLICY "Users can view own profile"
 
 CREATE POLICY "Admins can view all profiles"
   ON aideck_profiles FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM aideck_profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (aideck_is_admin());
 
 CREATE POLICY "Users can update own profile (name only)"
   ON aideck_profiles FOR UPDATE
@@ -99,11 +105,7 @@ CREATE POLICY "Users can update own profile (name only)"
 
 CREATE POLICY "Admins can update any profile"
   ON aideck_profiles FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM aideck_profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (aideck_is_admin());
 
 -- Generations: users see own, admins see all
 CREATE POLICY "Users can view own generations"
@@ -116,11 +118,7 @@ CREATE POLICY "Users can insert own generations"
 
 CREATE POLICY "Admins can view all generations"
   ON aideck_generations FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM aideck_profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (aideck_is_admin());
 
 -- Credit transactions: users see own, admins see all
 CREATE POLICY "Users can view own credit transactions"
@@ -133,20 +131,8 @@ CREATE POLICY "Users can insert own credit transactions"
 
 CREATE POLICY "Admins can view all credit transactions"
   ON aideck_credit_transactions FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM aideck_profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (aideck_is_admin());
 
 CREATE POLICY "Admins can insert credit transactions"
   ON aideck_credit_transactions FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM aideck_profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- ─── MAKE YOUR ACCOUNT ADMIN ───
--- Run this AFTER you sign up with engrmoshbari@gmail.com
--- UPDATE aideck_profiles SET role = 'admin' WHERE email = 'engrmoshbari@gmail.com';
+  WITH CHECK (aideck_is_admin());
