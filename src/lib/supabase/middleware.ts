@@ -34,7 +34,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Redirect unauthenticated users to login (except for public pages)
-  const publicPaths = ['/', '/login', '/signup', '/api/', '/auth/'];
+  const publicPaths = ['/', '/login', '/signup', '/thank-you', '/api/', '/auth/'];
   const isPublicPath = publicPaths.some((path) =>
     path === '/' ? request.nextUrl.pathname === '/' : request.nextUrl.pathname.startsWith(path)
   );
