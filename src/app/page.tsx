@@ -82,7 +82,9 @@ export default function Home() {
       // Show friendly error messages instead of raw technical details
       const rawMsg = err instanceof Error ? err.message : '';
       let friendlyMsg = "Something didn't go as planned — but no worries! Please try again in a moment.";
-      if (rawMsg.includes('parse') || rawMsg.includes('JSON')) {
+      if (rawMsg.includes('truncat') || rawMsg.includes('fewer slides')) {
+        friendlyMsg = "That was a lot of content! Try selecting fewer slides or turning off animations, then try again.";
+      } else if (rawMsg.includes('parse') || rawMsg.includes('JSON')) {
         friendlyMsg = "Our AI got a little creative with its response. Please try again — it usually works on the next attempt!";
       } else if (rawMsg.includes('timeout') || rawMsg.includes('504') || rawMsg.includes('529')) {
         friendlyMsg = "Things are a bit busy right now. Give it a moment and try again — your presentation will be worth the wait!";

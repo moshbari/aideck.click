@@ -143,7 +143,7 @@ Return the JSON object directly.`;
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [
         {
           role: 'user',
@@ -152,6 +152,11 @@ Return the JSON object directly.`;
       ],
       system: systemPrompt,
     });
+
+    // Check if response was truncated
+    if (message.stop_reason === 'max_tokens') {
+      throw new Error('Response was truncated — try generating fewer slides or disabling animations');
+    }
 
     // Extract text content from the response
     const responseText = message.content
