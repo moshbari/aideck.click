@@ -19,6 +19,7 @@ export interface GenerateRequest {
   slides: number;
   colorTheme: string;
   animations?: boolean;
+  purpose?: string;
 }
 
 export type ColorThemeName = 'navy-gold' | 'coral-energy' | 'forest-green' | 'charcoal-minimal';

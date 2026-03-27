@@ -303,19 +303,12 @@ function addHorizontalBarsSlide(
     const y = 0.95 + index * (barHeight + 0.08);
     const barAccent = accentPalette[(contentIndex + index) % accentPalette.length];
 
-    // Bar bg with left color accent
+    // Bar bg with colored left border (accent integrated into the shape)
     contentSlide.addShape(pres.ShapeType.rect, {
       x: 0.35, y, w: barWidth, h: barHeight,
-      fill: { color: 'FFFFFF' },
-      line: { color: 'E8E8E8', width: 0.5 },
+      fill: { color: lightenColor(barAccent, 0.9) },
+      line: { color: barAccent, width: 2.5 },
       shadow: createShadow(),
-    });
-
-    // Left colored accent on the bar
-    contentSlide.addShape(pres.ShapeType.rect, {
-      x: 0.35, y, w: 0.08, h: barHeight,
-      fill: { color: barAccent },
-      line: { type: 'none' },
     });
 
     // Bar text
@@ -326,18 +319,8 @@ function addHorizontalBarsSlide(
     });
   });
 
-  // For horizontal bars: each item = 3 shapes (bar bg + accent strip + text)
-  // but animation pairs work differently — we need bg+text pairs.
-  // So: bar bg is animated shape 1, accent strip is NOT animated (it's part of the visual),
-  // Actually for this layout, let's count: bar bg + accent + text = 3 shapes per bar.
-  // For animation, we treat it as: [bar_bg, accent_strip] appears on click, then text appears with.
-  // Simpler: don't animate this layout (or animate as 3-shape groups).
-  // DECISION: For horizontal bars, each card = 3 shapes. We'll pair (bg + accent) as one click group
-  // and text as withEffect. But our animation system expects pairs.
-  // Let's rework: combine accent into the bg by just using a colored left border instead.
-  // Actually, the shapes are already added. Let's just not animate horizontal bars to keep it working.
-  // We'll set cardCount=0 so animations skip this layout.
-  slideAnimationMeta.set(slideIndex, { cardCount: 0, staticCount: staticShapes + points.length * 3 });
+  // Each item = 2 shapes (bar bg + text) — proper animation pairs
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes });
   contentSlide.addNotes(slide.speakerNotes);
 }
 
@@ -387,22 +370,17 @@ function addNumberedPointsSlide(
     const y = 0.9 + index * (itemHeight + 0.06);
     const numColor = accentPalette[(contentIndex + index) % accentPalette.length];
 
-    // Number circle (bg shape)
-    contentSlide.addShape(pres.ShapeType.ellipse, {
-      x: MARGIN, y: y + (itemHeight - 0.45) / 2, w: 0.45, h: 0.45,
-      fill: { color: numColor },
-      line: { type: 'none' },
-    });
-
-    // Number text inside circle (we can't animate this separately, so make it part of the "bg")
-    // Actually, PptxGenJS addText creates a separate shape. Let's overlay the number onto the circle.
+    // Number badge — single text shape with circle fill (combines circle + number into 1 shape)
     contentSlide.addText(String(index + 1), {
       x: MARGIN, y: y + (itemHeight - 0.45) / 2, w: 0.45, h: 0.45,
       fontSize: 16, bold: true, fontFace: 'Calibri',
       color: 'FFFFFF', align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: numColor },
+      line: { type: 'none' },
     });
 
-    // Point text (text shape for animation)
+    // Point text
     contentSlide.addText(point, {
       x: MARGIN + 0.65, y, w: SLIDE_WIDTH - MARGIN - 1.3, h: itemHeight,
       fontSize: 13, fontFace: 'Calibri', bold: true,
@@ -410,9 +388,8 @@ function addNumberedPointsSlide(
     });
   });
 
-  // Each numbered point = 3 shapes (circle + number text + point text)
-  // For animation: we won't animate these either (3 shapes per group doesn't fit our pair system)
-  slideAnimationMeta.set(slideIndex, { cardCount: 0, staticCount: staticShapes + points.length * 3 });
+  // Each item = 2 shapes (number badge + point text) — proper animation pairs
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes });
   contentSlide.addNotes(slide.speakerNotes);
 }
 
@@ -643,8 +620,9 @@ function addComparisonSlide(
     });
   });
 
-  // Don't animate comparison slides (complex two-column structure)
-  slideAnimationMeta.set(slideIndex, { cardCount: 0, staticCount: 999 });
+  // Each point (left + right) = 2 shapes (bg rect + text) — proper animation pairs
+  const staticCount = 2; // top accent band + title on band
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount });
   comparisonSlide.addNotes(slide.speakerNotes);
 }
 

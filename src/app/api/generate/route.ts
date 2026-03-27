@@ -58,11 +58,49 @@ function validateGenerateRequest(body: any): { valid: boolean; error?: string } 
   return { valid: true };
 }
 
+const PURPOSE_INSTRUCTIONS: Record<string, string> = {
+  'sales-pitch': `PURPOSE — SALES PITCH:
+- Structure: Problem → Solution → Benefits → Social proof → Pricing/ROI → Call to action
+- Use persuasive, benefit-driven language. Focus on the audience's pain points and how you solve them.
+- Include data, metrics, and results where possible. Make the ROI obvious.
+- Speaker notes should anticipate objections and include rebuttals.
+- End with a clear, compelling call to action.`,
+
+  'authority-trust': `PURPOSE — AUTHORITY & TRUST BUILDING:
+- Structure: Credibility → Expertise demonstration → Case studies/results → Thought leadership → Engagement
+- Lead with credentials, experience, and track record. Show don't tell.
+- Use specific numbers, client names (if appropriate), and concrete outcomes.
+- Speaker notes should include anecdotes and proof points that build confidence.
+- Tone should be confident but not arrogant — knowledgeable and approachable.`,
+
+  'training': `PURPOSE — TRAINING / EDUCATIONAL:
+- Structure: Learning objectives → Concept explanation → Examples → Practice/application → Key takeaways
+- Break complex topics into digestible steps. One concept per slide.
+- Use clear definitions and real-world examples. Avoid overwhelming the audience.
+- Speaker notes should include extra explanations, analogies, and "check for understanding" prompts.
+- Include recap/summary points. Make it easy to follow along.`,
+
+  'internal-update': `PURPOSE — INTERNAL TEAM UPDATE:
+- Structure: Context/status → Progress highlights → Challenges/blockers → Next steps → Discussion points
+- Be direct and efficient. Team members want facts, not fluff.
+- Highlight what changed, what's on track, and what needs attention.
+- Speaker notes should include background context for new team members.
+- Keep slides scannable — use short bullet points with clear status indicators.`,
+
+  'conference-talk': `PURPOSE — CONFERENCE / PUBLIC TALK:
+- Structure: Hook/story → Problem framing → Key insights → Evidence/demos → Memorable takeaway
+- Open with a compelling hook — a story, surprising stat, or provocative question.
+- Each slide should support ONE big idea. Less text, more impact.
+- Speaker notes should be conversational and include timing cues and audience engagement moments.
+- End with a memorable, quotable takeaway the audience will remember.`,
+};
+
 async function callClaudeAPI(
   prompt: string,
   tone: string,
   numberOfSlides: number,
-  animations: boolean
+  animations: boolean,
+  purpose?: string
 ): Promise<PresentationStructure> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -137,6 +175,8 @@ QUALITY GUIDELINES:
 - Notes should add value beyond what's on the slide — explain, give examples, tell stories
 - The presenter should be able to present for 1-2 minutes per slide using just the notes
 - Write notes in proper paragraphs with line breaks between ideas
+
+${purpose && PURPOSE_INSTRUCTIONS[purpose] ? PURPOSE_INSTRUCTIONS[purpose] : ''}
 
 Return the JSON object directly.`;
 
@@ -243,13 +283,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { prompt, tone, slides, colorTheme, animations } = body;
+    const { prompt, tone, slides, colorTheme, animations, purpose } = body;
     const enableAnimations = animations === true;
 
     // Call Claude to generate structure
     let structure: PresentationStructure;
     try {
-      structure = await callClaudeAPI(prompt, tone, slides, enableAnimations);
+      structure = await callClaudeAPI(prompt, tone, slides, enableAnimations, purpose);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Claude API error:', errorMessage);

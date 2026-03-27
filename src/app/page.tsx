@@ -18,6 +18,14 @@ const COLOR_OPTIONS = [
   { label: 'Charcoal Minimal', value: 'charcoal-minimal' },
 ] as const;
 
+const PURPOSE_OPTIONS = [
+  { label: 'Sales Pitch', value: 'sales-pitch' },
+  { label: 'Authority & Trust', value: 'authority-trust' },
+  { label: 'Training', value: 'training' },
+  { label: 'Internal Update', value: 'internal-update' },
+  { label: 'Conference Talk', value: 'conference-talk' },
+] as const;
+
 const LoadingMessages = [
   'Planning your slides...',
   'Writing content...',
@@ -31,6 +39,7 @@ export default function Home() {
   const [toneIndex, setToneIndex] = useState(0);
   const [slides, setSlides] = useState(10);
   const [colorIndex, setColorIndex] = useState(0);
+  const [purposeIndex, setPurposeIndex] = useState<number | null>(null);
   const [animations, setAnimations] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
@@ -66,6 +75,7 @@ export default function Home() {
           slides,
           colorTheme: COLOR_OPTIONS[colorIndex].value,
           animations,
+          ...(purposeIndex !== null && { purpose: PURPOSE_OPTIONS[purposeIndex].value }),
         }),
       });
 
@@ -208,7 +218,31 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Options Row 4: Click Animations */}
+        {/* Options Row 4: Purpose (optional) */}
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-300 mb-1">
+            Purpose
+            <span className="text-gray-500 font-normal ml-2">optional</span>
+          </label>
+          <p className="text-xs text-gray-500 mb-3">Helps tailor structure and language to your use case.</p>
+          <div className="flex flex-wrap gap-3">
+            {PURPOSE_OPTIONS.map((option, i) => (
+              <button
+                key={option.label}
+                onClick={() => setPurposeIndex(purposeIndex === i ? null : i)}
+                className={`px-5 py-2.5 rounded-full font-medium transition-all ${
+                  purposeIndex === i
+                    ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg'
+                    : 'bg-gray-900 text-gray-300 border border-gray-800 hover:border-gray-700'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Options Row 5: Click Animations */}
         <div className="mb-10">
           <label className="flex items-start gap-3 cursor-pointer group">
             <div className="relative mt-0.5">
@@ -276,6 +310,7 @@ export default function Home() {
                 setLoadingMessageIndex(0);
                 setError(null);
                 setAnimations(false);
+                setPurposeIndex(null);
               }}
               className="flex-1 py-4 px-6 rounded-xl font-bold text-lg bg-gray-900 border border-gray-800 text-white hover:border-gray-700 transition-all"
             >
