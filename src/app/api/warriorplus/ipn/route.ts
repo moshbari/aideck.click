@@ -143,8 +143,10 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          if (linkData?.properties?.action_link) {
-            passwordSetupLink = linkData.properties.action_link;
+          if (linkData?.properties?.hashed_token) {
+            // Use hashed_token with client-side verifyOtp (PKCE-compatible)
+            const tokenHash = linkData.properties.hashed_token;
+            passwordSetupLink = `https://aideck.click/reset-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
             console.log(`[W+ IPN] Generated password setup link for ${buyerEmail}`);
           } else if (linkError) {
             console.error(`[W+ IPN] Error generating link: ${linkError.message}`);
@@ -181,6 +183,11 @@ export async function POST(request: NextRequest) {
           const updates: Record<string, unknown> = {
             credits: currentProfile.credits + product.credits,
           };
+
+          // Set the buyer's name on the profile if not already set
+          if (buyerName && !currentProfile.full_name) {
+            updates.full_name = buyerName;
+          }
 
           // Upgrade to pro for any paid product
           if (product.isPro || currentProfile.plan === 'free') {
