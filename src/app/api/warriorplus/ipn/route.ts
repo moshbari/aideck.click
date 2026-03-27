@@ -17,12 +17,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
  *   461003 = AI Deck 250 Cr → +250 credits
  */
 
-// Product ID → credits to add
+// Product WSO slug → credits to add
+// W+ sends the WSO slug (e.g. "wso_fjh1d4") as WP_ITEM_NUMBER, NOT the numeric product ID
 const PRODUCT_MAP: Record<string, { credits: number; name: string; isPro: boolean }> = {
-  '461000': { credits: 15, name: 'AI Deck Gold (Pro Access)', isPro: true },
-  '461001': { credits: 50, name: 'AI Deck 50 Credits', isPro: false },
-  '461002': { credits: 100, name: 'AI Deck 100 Credits', isPro: false },
-  '461003': { credits: 250, name: 'AI Deck 250 Credits', isPro: false },
+  'wso_fjh1d4': { credits: 15, name: 'AI Deck Gold (Pro Access)', isPro: true },      // 461000
+  'wso_v2z309': { credits: 50, name: 'AI Deck 50 Credits', isPro: false },             // 461001
+  'wso_kbm5vk': { credits: 100, name: 'AI Deck 100 Credits', isPro: false },           // 461002
+  'wso_j2l652': { credits: 250, name: 'AI Deck 250 Credits', isPro: false },           // 461003
 };
 
 // GoHighLevel Inbound Webhook URL for AIDeck Welcome Email workflow
