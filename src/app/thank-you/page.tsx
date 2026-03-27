@@ -57,9 +57,19 @@ function ThankYouContent() {
           msg.includes('already registered') ||
           msg.includes('already been registered')
         ) {
-          setError(
-            'An account with this email already exists — we created it for you automatically! Check your email for the password setup link, or go to the login page and click "Forgot Password".'
-          );
+          // Account exists — auto-send a password reset so the user can get in
+          const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://aideck.click/auth/reset-password',
+          });
+          if (!resetErr) {
+            setError(
+              'An account with this email already exists! We just sent a password reset link to your email — use it to set your password and log in.'
+            );
+          } else {
+            setError(
+              'An account with this email already exists. Please go to the login page and click "Forgot Password" to set up your password.'
+            );
+          }
           return;
         }
         // "Database error saving new user" typically means the auth user was
