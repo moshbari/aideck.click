@@ -77,6 +77,16 @@ function ThankYouContent() {
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
 
+        {/* ---- Support Link (Top) ---- */}
+        <div className="text-center mb-6">
+          <p className="text-gray-400 text-sm">
+            Need Help?{' '}
+            <a href="https://moshbari.hesk.com/" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 underline transition">
+              Contact support desk
+            </a>
+          </p>
+        </div>
+
         {/* ---- Welcome Banner ---- */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 mb-4">
@@ -182,6 +192,17 @@ function ThankYouContent() {
               </p>
             </div>
 
+            {/* ---- Checkout Email Guide Image (also in form) ---- */}
+            <div className="rounded-xl overflow-hidden border border-gray-800">
+              <Image
+                src="/checkout-email-guide.jpg"
+                alt="WarriorPlus checkout — use your Delivery Email to create your AI Deck account"
+                width={640}
+                height={480}
+                className="w-full h-auto"
+              />
+            </div>
+
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
                 Full Name
@@ -244,8 +265,18 @@ function ThankYouContent() {
           </form>
         )}
 
+        {/* ---- Support Link (Bottom) ---- */}
+        <div className="mt-8 text-center">
+          <p className="text-gray-400 text-sm">
+            Need Help?{' '}
+            <a href="https://moshbari.hesk.com/" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 underline transition">
+              Contact support desk
+            </a>
+          </p>
+        </div>
+
         {/* ---- Footer ---- */}
-        <div className="mt-8 text-center text-sm">
+        <div className="mt-4 text-center text-sm">
           <Link href="/" className="text-orange-500 hover:text-orange-400 transition">
             ← Back to home
           </Link>
