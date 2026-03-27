@@ -16,6 +16,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Password change state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -76,6 +83,43 @@ export default function DashboardPage() {
       router.push('/');
     } catch (err) {
       console.error('Sign out error:', err);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordMsg(null);
+
+    if (!newPassword || !confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'Please fill in both fields.' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'Password must be at least 6 characters.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        setPasswordMsg({ type: 'error', text: updateError.message });
+      } else {
+        setPasswordMsg({ type: 'success', text: 'Password updated successfully!' });
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setShowPasswordSection(false), 2000);
+      }
+    } catch {
+      setPasswordMsg({ type: 'error', text: 'An unexpected error occurred.' });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -212,6 +256,73 @@ export default function DashboardPage() {
             <p className="text-sm text-green-400">
               ✓ Pro Plan - Unlimited Decks
             </p>
+          )}
+        </div>
+
+        {/* Change Password Section */}
+        <div className="mb-8 rounded-lg bg-gray-900 border border-gray-800">
+          <button
+            onClick={() => {
+              setShowPasswordSection(!showPasswordSection);
+              setPasswordMsg(null);
+              setNewPassword('');
+              setConfirmPassword('');
+            }}
+            className="w-full p-6 flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span className="text-white font-medium">Change Password</span>
+            </div>
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${showPasswordSection ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showPasswordSection && (
+            <div className="px-6 pb-6 border-t border-gray-800 pt-4">
+              <div className="max-w-md space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                  />
+                </div>
+
+                {passwordMsg && (
+                  <p className={`text-sm ${passwordMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                    {passwordMsg.text}
+                  </p>
+                )}
+
+                <button
+                  onClick={handleChangePassword}
+                  disabled={passwordLoading}
+                  className="px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {passwordLoading ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
