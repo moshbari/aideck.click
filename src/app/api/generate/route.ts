@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { generatePptx } from '@/lib/generate-pptx';
-import { GenerateRequest, PresentationStructure } from '@/lib/types';
+import { GenerateRequest, PresentationStructure, SlideData } from '@/lib/types';
 import { uploadToR2, generateSmartFilename, generateDescription } from '@/lib/r2';
 import { createClient } from '@supabase/supabase-js';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 // Color themes that are supported
 const VALID_THEMES = ['navy-gold', 'coral-energy', 'forest-green', 'charcoal-minimal'];
@@ -145,10 +146,21 @@ JSON FORMAT:
         { "text": "Point text here", "icon": "🎯" },
         { "text": "Another point", "icon": "💡" }
       ],
-      "speakerNotes": "Full presenter script for this slide..."
+      "speakerNotes": "Full presenter script for this slide...",
+      "imagePrompt": "A flat-style illustration of..."
     }
   ]
 }
+
+IMAGE PROMPT RULES — VERY IMPORTANT:
+- Every slide MUST include an "imagePrompt" field
+- The imagePrompt is a description that will be sent to DALL-E to generate a unique illustration for that slide
+- Write it as a clear, vivid description of a FLAT-STYLE or MINIMALIST illustration that matches the slide content
+- Keep prompts under 80 words
+- Style guide: "flat vector illustration, clean modern style, simple shapes, no text, no words, no letters"
+- Match the topic: a slide about money → illustration of coins/charts; a slide about teamwork → people collaborating
+- Do NOT include any text or words in the image description — the images must be purely visual/graphic
+- Each slide's image should be different and unique to that slide's content
 
 SLIDE RULES:
 1. Generate exactly ${numberOfSlides} slides total
@@ -285,6 +297,42 @@ Return the JSON object directly.`;
   }
 }
 
+// ─── DALL-E Image Generation ───
+async function generateSlideImages(slides: SlideData[]): Promise<void> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.log('OPENAI_API_KEY not set — skipping image generation');
+    return;
+  }
+
+  const openai = new OpenAI({ apiKey });
+
+  // Generate images for all slides in parallel
+  const imagePromises = slides.map(async (slide, index) => {
+    if (!slide.imagePrompt) return;
+
+    try {
+      const response = await openai.images.generate({
+        model: 'dall-e-3',
+        prompt: `${slide.imagePrompt}. Style: flat vector illustration, clean modern style, simple geometric shapes, vibrant colors, no text, no words, no letters, no numbers, presentation-ready graphic, white or transparent background.`,
+        n: 1,
+        size: '1024x1024',
+        response_format: 'b64_json',
+        quality: 'standard',
+      });
+
+      if (response.data && response.data[0]?.b64_json) {
+        slide.imageData = response.data[0].b64_json;
+      }
+    } catch (error) {
+      console.error(`DALL-E error for slide ${index + 1}:`, error instanceof Error ? error.message : error);
+      // Non-fatal: slide just won't have an image
+    }
+  });
+
+  await Promise.all(imagePromises);
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Parse request body
@@ -321,6 +369,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { error: `Failed to generate presentation: ${errorMessage}` },
         { status: 500 }
       );
+    }
+
+    // Generate AI images for each slide (DALL-E)
+    try {
+      await generateSlideImages(structure.slides);
+      console.log(`Image generation complete: ${structure.slides.filter(s => s.imageData).length}/${structure.slides.length} slides have images`);
+    } catch (error) {
+      console.error('Image generation error (non-blocking):', error instanceof Error ? error.message : error);
+      // Non-fatal: presentation will still generate without images
     }
 
     // Generate PPTX
