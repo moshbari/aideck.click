@@ -155,7 +155,7 @@ SLIDE RULES:
 2. First slide: type "title" — main topic as title, optional subtitle
 3. Middle slides: type "content" — 4-6 bullet points in "points" array
 4. You may include one "comparison" slide if it fits the topic
-5. Last slide: type "closing" — strong ending or call-to-action
+5. Last slide: type "closing" — strong ending or call-to-action. MUST include 3-4 "points" with icons (key takeaways or action steps) that animate on click, plus a subtitle as the final CTA line
 6. Titles: max 8 words, clear and direct
 7. Bullet points: max 10 words each, punchy and scannable
 
