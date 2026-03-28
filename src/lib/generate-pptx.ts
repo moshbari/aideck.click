@@ -174,11 +174,33 @@ function createShadow() {
 //   2. Then add animated shapes in pairs: [bg shape, text shape] per card
 //   3. Return the count of static shapes via slideAnimationMeta
 
-type LayoutType = 'cards-grid' | 'horizontal-bars' | 'numbered-points' | 'accent-header' | 'dark-cards';
+type LayoutType = 'cards-grid' | 'horizontal-bars' | 'numbered-points' | 'accent-header' | 'dark-cards'
+  | 'timeline' | 'split-screen' | 'icon-row' | 'quote-spotlight' | 'stacked-pills';
+
+// Fisher-Yates shuffle for randomizing layouts
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Pre-shuffled layout order — generated once per presentation so every deck is unique
+let shuffledLayouts: LayoutType[] = [];
+
+function initShuffledLayouts(): void {
+  const allLayouts: LayoutType[] = [
+    'cards-grid', 'horizontal-bars', 'numbered-points', 'accent-header', 'dark-cards',
+    'timeline', 'split-screen', 'icon-row', 'quote-spotlight', 'stacked-pills',
+  ];
+  shuffledLayouts = shuffleArray(allLayouts);
+}
 
 function getLayoutForSlide(contentSlideIndex: number): LayoutType {
-  const layouts: LayoutType[] = ['cards-grid', 'horizontal-bars', 'numbered-points', 'accent-header', 'dark-cards'];
-  return layouts[contentSlideIndex % layouts.length];
+  if (shuffledLayouts.length === 0) initShuffledLayouts();
+  return shuffledLayouts[contentSlideIndex % shuffledLayouts.length];
 }
 
 // ─── TITLE SLIDE ───
@@ -775,6 +797,486 @@ function addDarkCardsSlide(
   contentSlide.addNotes(slide.speakerNotes);
 }
 
+// ─── LAYOUT F: Timeline ───
+// Vertical connecting line with circle nodes and text beside each node
+function addTimelineSlide(
+  pres: PptxGenJS,
+  slide: SlideData,
+  theme: ColorTheme,
+  slideIndex: number,
+  accentPalette: string[],
+  contentIndex: number
+): void {
+  const contentSlide = pres.addSlide();
+  contentSlide.background = { color: 'FFFFFF' };
+
+  let staticShapes = 0;
+
+  // Subtle top gradient bar
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: 0, y: 0, w: SLIDE_WIDTH, h: 0.06,
+    fill: { color: theme.primary },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Title
+  contentSlide.addText(slide.title, {
+    x: MARGIN, y: 0.2, w: SLIDE_WIDTH - 2 * MARGIN, h: 0.55,
+    fontSize: 26, bold: true, fontFace: 'Trebuchet MS',
+    color: theme.primary, align: 'left', valign: 'middle',
+  });
+  staticShapes++;
+
+  // Slide number
+  contentSlide.addText(String(slideIndex + 1), {
+    x: SLIDE_WIDTH - 0.8, y: SLIDE_HEIGHT - 0.6, w: 0.5, h: 0.4,
+    fontSize: 10, fontFace: 'Calibri', color: '999999', align: 'right',
+  });
+  staticShapes++;
+
+  // Vertical timeline line
+  const points = slide.points || [];
+  const lineX = 1.3;
+  const startY = 1.0;
+  const itemSpacing = Math.min((SLIDE_HEIGHT - startY - 0.3) / points.length, 0.85);
+  const endY = startY + (points.length - 1) * itemSpacing;
+
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: lineX - 0.02, y: startY, w: 0.04, h: endY - startY + 0.3,
+    fill: { color: lightenColor(theme.primary, 0.6) },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // AI image
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-right');
+
+  // Timeline nodes and text
+  points.forEach((point, index) => {
+    const y = startY + index * itemSpacing;
+    const nodeColor = accentPalette[(contentIndex + index) % accentPalette.length];
+
+    // Circle node on the line
+    const nodeSize = 0.45;
+    contentSlide.addText(getPointIcon(point), {
+      x: lineX - nodeSize / 2, y: y, w: nodeSize, h: nodeSize,
+      fontSize: 15, fontFace: 'Segoe UI Emoji',
+      align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: nodeColor },
+      line: { color: 'FFFFFF', width: 2 },
+      color: 'FFFFFF',
+    });
+
+    // Connector dash from node to text
+    contentSlide.addShape(pres.ShapeType.rect, {
+      x: lineX + nodeSize / 2 + 0.05, y: y + nodeSize / 2 - 0.015, w: 0.3, h: 0.03,
+      fill: { color: lightenColor(nodeColor, 0.4) },
+      line: { type: 'none' },
+    });
+
+    // Text to the right
+    contentSlide.addText(getPointText(point), {
+      x: lineX + nodeSize / 2 + 0.45, y: y - 0.05,
+      w: SLIDE_WIDTH - lineX - nodeSize - 1.5, h: nodeSize + 0.1,
+      fontSize: 13, fontFace: 'Calibri', bold: true,
+      color: '333333', align: 'left', valign: 'middle', wrap: true,
+    });
+  });
+
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
+  contentSlide.addNotes(slide.speakerNotes);
+}
+
+// ─── LAYOUT G: Split Screen ───
+// Left half is a solid color panel, right half is white with content cards
+function addSplitScreenSlide(
+  pres: PptxGenJS,
+  slide: SlideData,
+  theme: ColorTheme,
+  slideIndex: number,
+  accentPalette: string[],
+  contentIndex: number
+): void {
+  const contentSlide = pres.addSlide();
+  contentSlide.background = { color: 'FFFFFF' };
+
+  let staticShapes = 0;
+
+  // Left colored panel (40% width)
+  const panelWidth = SLIDE_WIDTH * 0.38;
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: 0, y: 0, w: panelWidth, h: SLIDE_HEIGHT,
+    fill: { color: theme.primary },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Decorative circle on left panel
+  contentSlide.addShape(pres.ShapeType.ellipse, {
+    x: panelWidth - 1.2, y: SLIDE_HEIGHT - 1.8, w: 2, h: 2,
+    fill: { color: lightenColor(theme.primary, 0.12), transparency: 40 },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Title on left panel (white text)
+  contentSlide.addText(slide.title, {
+    x: 0.4, y: 0.6, w: panelWidth - 0.8, h: 1.8,
+    fontSize: 24, bold: true, fontFace: 'Trebuchet MS',
+    color: 'FFFFFF', align: 'left', valign: 'top', wrap: true,
+  });
+  staticShapes++;
+
+  // Accent underline on panel
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: 0.4, y: 2.5, w: 1.5, h: 0.05,
+    fill: { color: theme.secondary },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Slide number
+  contentSlide.addText(String(slideIndex + 1), {
+    x: 0.4, y: SLIDE_HEIGHT - 0.6, w: 0.5, h: 0.4,
+    fontSize: 10, fontFace: 'Calibri', color: lightenColor(theme.primary, 0.5), align: 'left',
+  });
+  staticShapes++;
+
+  // AI image on left panel bottom
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-left');
+
+  // Content items on right side
+  const points = slide.points || [];
+  const rightX = panelWidth + 0.35;
+  const rightW = SLIDE_WIDTH - panelWidth - 0.7;
+  const itemHeight = Math.min((SLIDE_HEIGHT - 0.8) / points.length - 0.1, 0.8);
+
+  points.forEach((point, index) => {
+    const y = 0.4 + index * (itemHeight + 0.1);
+    const accentColor = accentPalette[(contentIndex + index) % accentPalette.length];
+
+    // Card bg with left accent border
+    contentSlide.addShape(pres.ShapeType.rect, {
+      x: rightX, y, w: rightW, h: itemHeight,
+      fill: { color: lightenColor(accentColor, 0.92) },
+      rectRadius: 0.06,
+      line: { type: 'none' },
+      shadow: createShadow(),
+    });
+
+    // Icon
+    const iconSize = Math.min(itemHeight - 0.12, 0.45);
+    contentSlide.addText(getPointIcon(point), {
+      x: rightX + 0.15, y: y + (itemHeight - iconSize) / 2,
+      w: iconSize, h: iconSize,
+      fontSize: 15, fontFace: 'Segoe UI Emoji',
+      align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: accentColor },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+    });
+
+    // Text
+    contentSlide.addText(getPointText(point), {
+      x: rightX + 0.15 + iconSize + 0.15, y,
+      w: rightW - iconSize - 0.55, h: itemHeight,
+      fontSize: 12, fontFace: 'Calibri', bold: true,
+      color: '333333', align: 'left', valign: 'middle', wrap: true,
+    });
+  });
+
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
+  contentSlide.addNotes(slide.speakerNotes);
+}
+
+// ─── LAYOUT H: Icon Row ───
+// Large icons in a horizontal row across the slide, text beneath each
+function addIconRowSlide(
+  pres: PptxGenJS,
+  slide: SlideData,
+  theme: ColorTheme,
+  slideIndex: number,
+  accentPalette: string[],
+  contentIndex: number
+): void {
+  const contentSlide = pres.addSlide();
+  contentSlide.background = { color: lightenColor(theme.primary, 0.93) };
+
+  let staticShapes = 0;
+
+  // Bottom accent bar
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: 0, y: SLIDE_HEIGHT - 0.08, w: SLIDE_WIDTH, h: 0.08,
+    fill: { color: theme.primary },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Title centered at top
+  contentSlide.addText(slide.title, {
+    x: MARGIN, y: 0.25, w: SLIDE_WIDTH - 2 * MARGIN, h: 0.6,
+    fontSize: 28, bold: true, fontFace: 'Trebuchet MS',
+    color: theme.primary, align: 'center', valign: 'middle',
+  });
+  staticShapes++;
+
+  // Thin underline
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: SLIDE_WIDTH / 2 - 1.2, y: 0.9, w: 2.4, h: 0.04,
+    fill: { color: theme.accent },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Slide number
+  contentSlide.addText(String(slideIndex + 1), {
+    x: SLIDE_WIDTH - 0.8, y: SLIDE_HEIGHT - 0.6, w: 0.5, h: 0.4,
+    fontSize: 10, fontFace: 'Calibri', color: '999999', align: 'right',
+  });
+  staticShapes++;
+
+  // AI image — center background watermark
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-right');
+
+  // Icon columns — evenly spaced across width
+  const points = slide.points || [];
+  const colCount = points.length;
+  const colWidth = (SLIDE_WIDTH - 2 * MARGIN) / colCount;
+  const iconSize = Math.min(colWidth * 0.55, 1.1);
+
+  points.forEach((point, index) => {
+    const centerX = MARGIN + index * colWidth + colWidth / 2;
+    const accentColor = accentPalette[(contentIndex + index) % accentPalette.length];
+
+    // Large icon circle
+    contentSlide.addText(getPointIcon(point), {
+      x: centerX - iconSize / 2, y: 1.2,
+      w: iconSize, h: iconSize,
+      fontSize: Math.round(iconSize * 22), fontFace: 'Segoe UI Emoji',
+      align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: accentColor },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+      shadow: createShadow(),
+    });
+
+    // Small connector line under icon
+    contentSlide.addShape(pres.ShapeType.rect, {
+      x: centerX - 0.015, y: 1.2 + iconSize + 0.08,
+      w: 0.03, h: 0.25,
+      fill: { color: lightenColor(accentColor, 0.4) },
+      line: { type: 'none' },
+    });
+
+    // Text below icon
+    contentSlide.addText(getPointText(point), {
+      x: centerX - colWidth / 2 + 0.1, y: 1.2 + iconSize + 0.4,
+      w: colWidth - 0.2, h: SLIDE_HEIGHT - 1.2 - iconSize - 0.9,
+      fontSize: 11, fontFace: 'Calibri', bold: true,
+      color: '444444', align: 'center', valign: 'top', wrap: true,
+    });
+  });
+
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
+  contentSlide.addNotes(slide.speakerNotes);
+}
+
+// ─── LAYOUT I: Quote Spotlight ───
+// Big bold statement/quote at top, supporting details as small cards below
+function addQuoteSpotlightSlide(
+  pres: PptxGenJS,
+  slide: SlideData,
+  theme: ColorTheme,
+  slideIndex: number,
+  accentPalette: string[],
+  contentIndex: number
+): void {
+  const contentSlide = pres.addSlide();
+  contentSlide.background = { color: theme.primary };
+
+  let staticShapes = 0;
+
+  // Large decorative quote mark — top left
+  contentSlide.addText('\u201C', {
+    x: 0.2, y: -0.3, w: 1.5, h: 1.5,
+    fontSize: 120, fontFace: 'Georgia',
+    color: lightenColor(theme.primary, 0.15),
+    align: 'left', valign: 'top',
+  });
+  staticShapes++;
+
+  // Title as the spotlight quote — large and centered
+  contentSlide.addText(slide.title, {
+    x: MARGIN + 0.3, y: 0.3, w: SLIDE_WIDTH - 2 * MARGIN - 0.6, h: 1.5,
+    fontSize: 28, bold: true, fontFace: 'Trebuchet MS',
+    color: 'FFFFFF', align: 'center', valign: 'middle', wrap: true,
+  });
+  staticShapes++;
+
+  // Accent bar below quote
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: SLIDE_WIDTH / 2 - 1, y: 1.9, w: 2, h: 0.05,
+    fill: { color: theme.secondary },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Slide number
+  contentSlide.addText(String(slideIndex + 1), {
+    x: SLIDE_WIDTH - 0.8, y: SLIDE_HEIGHT - 0.6, w: 0.5, h: 0.4,
+    fontSize: 10, fontFace: 'Calibri', color: lightenColor(theme.primary, 0.4), align: 'right',
+  });
+  staticShapes++;
+
+  // AI image
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-right');
+
+  // Supporting detail cards — horizontal row below the quote
+  const points = slide.points || [];
+  const cardGap = 0.15;
+  const totalCardWidth = SLIDE_WIDTH - 2 * MARGIN;
+  const cardWidth = (totalCardWidth - (points.length - 1) * cardGap) / points.length;
+  const cardHeight = SLIDE_HEIGHT - 2.3 - 0.5;
+
+  points.forEach((point, index) => {
+    const x = MARGIN + index * (cardWidth + cardGap);
+    const y = 2.2;
+    const accentColor = accentPalette[(contentIndex + index) % accentPalette.length];
+
+    // Semi-transparent card
+    contentSlide.addShape(pres.ShapeType.rect, {
+      x, y, w: cardWidth, h: cardHeight,
+      fill: { color: lightenColor(theme.primary, 0.1), transparency: 25 },
+      rectRadius: 0.08,
+      line: { type: 'none' },
+    });
+
+    // Icon at top of card
+    const iconSize = 0.42;
+    contentSlide.addText(getPointIcon(point), {
+      x: x + (cardWidth - iconSize) / 2, y: y + 0.15,
+      w: iconSize, h: iconSize,
+      fontSize: 16, fontFace: 'Segoe UI Emoji',
+      align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: accentColor },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+    });
+
+    // Card text
+    contentSlide.addText(getPointText(point), {
+      x: x + 0.1, y: y + iconSize + 0.25,
+      w: cardWidth - 0.2, h: cardHeight - iconSize - 0.45,
+      fontSize: 11, fontFace: 'Calibri', bold: true,
+      color: 'FFFFFF', align: 'center', valign: 'top', wrap: true,
+    });
+  });
+
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
+  contentSlide.addNotes(slide.speakerNotes);
+}
+
+// ─── LAYOUT J: Stacked Pills ───
+// Rounded pill-shaped bars stacked vertically with gradient-like fills
+function addStackedPillsSlide(
+  pres: PptxGenJS,
+  slide: SlideData,
+  theme: ColorTheme,
+  slideIndex: number,
+  accentPalette: string[],
+  contentIndex: number
+): void {
+  const contentSlide = pres.addSlide();
+  contentSlide.background = { color: 'FAFAFA' };
+
+  let staticShapes = 0;
+
+  // Top-right decorative rounded rect
+  contentSlide.addShape(pres.ShapeType.rect, {
+    x: SLIDE_WIDTH - 2.5, y: -0.5, w: 3, h: 1.5,
+    fill: { color: lightenColor(theme.primary, 0.85) },
+    rectRadius: 0.4,
+    line: { type: 'none' },
+    rotate: -8,
+  });
+  staticShapes++;
+
+  // Title
+  contentSlide.addText(slide.title, {
+    x: MARGIN, y: 0.2, w: SLIDE_WIDTH - 2 * MARGIN, h: 0.6,
+    fontSize: 26, bold: true, fontFace: 'Trebuchet MS',
+    color: theme.primary, align: 'left', valign: 'middle',
+  });
+  staticShapes++;
+
+  // Colored dot before title
+  contentSlide.addShape(pres.ShapeType.ellipse, {
+    x: MARGIN - 0.25, y: 0.42, w: 0.16, h: 0.16,
+    fill: { color: theme.accent },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Slide number
+  contentSlide.addText(String(slideIndex + 1), {
+    x: SLIDE_WIDTH - 0.8, y: SLIDE_HEIGHT - 0.6, w: 0.5, h: 0.4,
+    fontSize: 10, fontFace: 'Calibri', color: '999999', align: 'right',
+  });
+  staticShapes++;
+
+  // AI image
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-right');
+
+  // Stacked pill bars
+  const points = slide.points || [];
+  const hasImg = !!slide.imageData;
+  const pillHeight = Math.min((SLIDE_HEIGHT - 1.2 - 0.4) / points.length - 0.1, 0.65);
+  const pillWidth = hasImg ? SLIDE_WIDTH - MARGIN - 3.0 : SLIDE_WIDTH - 2 * MARGIN;
+
+  points.forEach((point, index) => {
+    const y = 1.05 + index * (pillHeight + 0.1);
+    const pillColor = accentPalette[(contentIndex + index) % accentPalette.length];
+
+    // Pill background — big rounded rect
+    contentSlide.addShape(pres.ShapeType.rect, {
+      x: MARGIN, y, w: pillWidth, h: pillHeight,
+      fill: { color: lightenColor(pillColor, 0.78) },
+      rectRadius: pillHeight / 2, // Fully rounded ends = pill shape
+      line: { type: 'none' },
+      shadow: createShadow(),
+    });
+
+    // Icon circle on left end of pill
+    const iconSize = Math.min(pillHeight - 0.08, 0.48);
+    contentSlide.addText(getPointIcon(point), {
+      x: MARGIN + 0.12, y: y + (pillHeight - iconSize) / 2,
+      w: iconSize, h: iconSize,
+      fontSize: 15, fontFace: 'Segoe UI Emoji',
+      align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: pillColor },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+    });
+
+    // Text inside pill
+    contentSlide.addText(getPointText(point), {
+      x: MARGIN + 0.12 + iconSize + 0.15, y,
+      w: pillWidth - iconSize - 0.55, h: pillHeight,
+      fontSize: 12, fontFace: 'Calibri', bold: true,
+      color: darkenColor(pillColor, 0.25), align: 'left', valign: 'middle', wrap: true,
+    });
+  });
+
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
+  contentSlide.addNotes(slide.speakerNotes);
+}
+
 // ─── COMPARISON SLIDE (improved) ───
 function addComparisonSlide(
   pres: PptxGenJS,
@@ -1187,6 +1689,7 @@ export async function generatePptx(
   animations: boolean = false
 ): Promise<Buffer> {
   slideAnimationMeta.clear();
+  initShuffledLayouts(); // Randomize layout order for this presentation
 
   const theme = getTheme(colorTheme);
   const accentPalette = getAccentPalette(theme);
@@ -1219,6 +1722,21 @@ export async function generatePptx(
             break;
           case 'dark-cards':
             addDarkCardsSlide(pres, slide, theme, slideIndex, accentPalette, contentSlideIndex);
+            break;
+          case 'timeline':
+            addTimelineSlide(pres, slide, theme, slideIndex, accentPalette, contentSlideIndex);
+            break;
+          case 'split-screen':
+            addSplitScreenSlide(pres, slide, theme, slideIndex, accentPalette, contentSlideIndex);
+            break;
+          case 'icon-row':
+            addIconRowSlide(pres, slide, theme, slideIndex, accentPalette, contentSlideIndex);
+            break;
+          case 'quote-spotlight':
+            addQuoteSpotlightSlide(pres, slide, theme, slideIndex, accentPalette, contentSlideIndex);
+            break;
+          case 'stacked-pills':
+            addStackedPillsSlide(pres, slide, theme, slideIndex, accentPalette, contentSlideIndex);
             break;
         }
         contentSlideIndex++;
