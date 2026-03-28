@@ -369,16 +369,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           let userId: string | null = null;
 
           // Parse the Supabase auth token from cookies
+          // Supabase stores cookies in format: sb-<project>-auth-token=base64-<base64json>
+          // where the JSON is {access_token, refresh_token, ...} or legacy [access_token, refresh_token]
           const tokenMatch = authHeader.match(/sb-[^=]+-auth-token[^=]*=([^;]+)/);
           if (tokenMatch) {
             try {
-              // The cookie might be base64 encoded JSON
               let tokenValue = decodeURIComponent(tokenMatch[1]);
-              // Try to parse as JSON array (Supabase stores [access_token, refresh_token])
+
+              // Handle base64- prefix (newer Supabase format)
+              if (tokenValue.startsWith('base64-')) {
+                tokenValue = Buffer.from(tokenValue.substring(7), 'base64').toString('utf-8');
+              }
+
+              // Try to parse as JSON
               try {
                 const parsed = JSON.parse(tokenValue);
                 if (Array.isArray(parsed) && parsed[0]) {
+                  // Legacy format: [access_token, refresh_token]
                   tokenValue = parsed[0];
+                } else if (parsed && typeof parsed === 'object' && parsed.access_token) {
+                  // New format: {access_token, refresh_token, ...}
+                  tokenValue = parsed.access_token;
                 }
               } catch {
                 // Not JSON, use as-is
