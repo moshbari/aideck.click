@@ -770,22 +770,27 @@ function addComparisonSlide(
   comparisonSlide.addNotes(slide.speakerNotes);
 }
 
-// ─── CLOSING SLIDE ───
+// âââ CLOSING SLIDE âââ
 function addClosingSlide(
   pres: PptxGenJS,
   slide: SlideData,
-  theme: ColorTheme
+  theme: ColorTheme,
+  slideIndex: number,
+  accentPalette: string[]
 ): void {
   const closingSlide = pres.addSlide();
   closingSlide.background = { color: theme.primary };
 
-  // Geometric accent — large tilted rectangle bottom left
+  let staticShapes = 0;
+
+  // Geometric accent â large tilted rectangle bottom left
   closingSlide.addShape(pres.ShapeType.rect, {
     x: -1, y: SLIDE_HEIGHT - 2, w: 3, h: 3,
     fill: { color: lightenColor(theme.primary, 0.15), transparency: 35 },
     line: { type: 'none' },
     rotate: -20,
   });
+  staticShapes++;
 
   // Large tilted rectangle top right (mirror effect)
   closingSlide.addShape(pres.ShapeType.rect, {
@@ -794,27 +799,31 @@ function addClosingSlide(
     line: { type: 'none' },
     rotate: 15,
   });
+  staticShapes++;
 
-  // Accent circle — top right
+  // Accent circle â top right
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: SLIDE_WIDTH - 1.5, y: 0.3, w: 1.2, h: 1.2,
     fill: { color: theme.secondary, transparency: 30 },
     line: { type: 'none' },
   });
+  staticShapes++;
 
-  // Small accent circle — bottom right
+  // Small accent circle â bottom right
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: SLIDE_WIDTH - 2.8, y: SLIDE_HEIGHT - 1.2, w: 0.5, h: 0.5,
     fill: { color: theme.accent, transparency: 40 },
     line: { type: 'none' },
   });
+  staticShapes++;
 
-  // Small decorative circle — left side
+  // Small decorative circle â left side
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: 1.5, y: 0.5, w: 0.4, h: 0.4,
     fill: { color: theme.secondary, transparency: 50 },
     line: { type: 'none' },
   });
+  staticShapes++;
 
   // Diagonal accent stripe
   closingSlide.addShape(pres.ShapeType.rect, {
@@ -823,22 +832,15 @@ function addClosingSlide(
     line: { type: 'none' },
     rotate: 8,
   });
-
-  // Accent bar above CTA
-  closingSlide.addShape(pres.ShapeType.rect, {
-    x: SLIDE_WIDTH / 2 - 1, y: 3.1,
-    w: 2, h: 0.05,
-    fill: { color: theme.secondary },
-    line: { type: 'none' },
-  });
+  staticShapes++;
 
   // Main message
   closingSlide.addText(slide.title, {
     x: MARGIN + 0.5,
-    y: 1.1,
+    y: 0.4,
     w: SLIDE_WIDTH - 2 * MARGIN - 1,
-    h: 1.6,
-    fontSize: 40,
+    h: 1.2,
+    fontSize: 36,
     bold: true,
     fontFace: 'Trebuchet MS',
     color: 'FFFFFF',
@@ -846,15 +848,86 @@ function addClosingSlide(
     valign: 'middle',
     wrap: true,
   });
+  staticShapes++;
 
-  // CTA
+  // Accent bar below title
+  closingSlide.addShape(pres.ShapeType.rect, {
+    x: SLIDE_WIDTH / 2 - 1, y: 1.65,
+    w: 2, h: 0.05,
+    fill: { color: theme.secondary },
+    line: { type: 'none' },
+  });
+  staticShapes++;
+
+  // Animated takeaway points (if points exist)
+  const points = slide.points || [];
+  if (points.length > 0) {
+    const startY = 1.95;
+    const pointHeight = 0.65;
+    const pointGap = 0.12;
+    const pointWidth = SLIDE_WIDTH - 2 * MARGIN - 1.5;
+    const pointX = (SLIDE_WIDTH - pointWidth) / 2;
+
+    points.forEach((point, index) => {
+      const y = startY + index * (pointHeight + pointGap);
+      const accentColor = accentPalette[index % accentPalette.length];
+
+      // Semi-transparent card background
+      closingSlide.addShape(pres.ShapeType.rect, {
+        x: pointX, y, w: pointWidth, h: pointHeight,
+        fill: { color: lightenColor(theme.primary, 0.12), transparency: 20 },
+        rectRadius: 0.08,
+        line: { type: 'none' },
+      });
+
+      // Icon on left
+      const iconSize = 0.42;
+      closingSlide.addText(getPointIcon(point), {
+        x: pointX + 0.15,
+        y: y + (pointHeight - iconSize) / 2,
+        w: iconSize,
+        h: iconSize,
+        fontSize: 16,
+        fontFace: 'Segoe UI Emoji',
+        align: 'center',
+        valign: 'middle',
+        shape: pres.ShapeType.ellipse,
+        fill: { color: accentColor },
+        line: { type: 'none' },
+        color: 'FFFFFF',
+      });
+
+      // Point text
+      closingSlide.addText(getPointText(point), {
+        x: pointX + 0.15 + iconSize + 0.15,
+        y,
+        w: pointWidth - iconSize - 0.55,
+        h: pointHeight,
+        fontSize: 14,
+        bold: true,
+        fontFace: 'Calibri',
+        color: 'FFFFFF',
+        align: 'left',
+        valign: 'middle',
+        wrap: true,
+      });
+    });
+
+    // Register animation metadata: each point = 3 shapes (bg + icon + text)
+    slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
+  }
+
+  // CTA subtitle at bottom
   if (slide.subtitle) {
+    const ctaY = points.length > 0
+      ? 1.95 + points.length * (0.65 + 0.12) + 0.1
+      : 3.4;
     closingSlide.addText(slide.subtitle, {
       x: MARGIN + 1,
-      y: 3.4,
+      y: Math.min(ctaY, SLIDE_HEIGHT - 1.1),
       w: SLIDE_WIDTH - 2 * MARGIN - 2,
-      h: 0.8,
-      fontSize: 18,
+      h: 0.7,
+      fontSize: 17,
       fontFace: 'Calibri',
       color: theme.secondary,
       align: 'center',
@@ -1053,7 +1126,7 @@ export async function generatePptx(
         contentSlideIndex++;
         break;
       case 'closing':
-        addClosingSlide(pres, slide, theme);
+        addClosingSlide(pres, slide, theme, slideIndex, accentPalette);
         break;
       default: {
         const fallbackLayout = getLayoutForSlide(contentSlideIndex);
