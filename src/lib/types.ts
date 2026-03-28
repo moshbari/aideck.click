@@ -11,6 +11,8 @@ export interface SlideData {
   subtitle?: string;
   points?: SlidePoint[];
   speakerNotes: string;
+  imagePrompt?: string;  // AI-generated description for DALL-E image generation
+  imageData?: string;    // Base64-encoded image data (populated after DALL-E call)
 }
 
 export interface PresentationStructure {
