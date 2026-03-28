@@ -76,6 +76,81 @@ const SLIDE_WIDTH = 10;
 const SLIDE_HEIGHT = 5.625;
 const MARGIN = 0.5;
 
+// Helper: add AI-generated image to a slide
+// Returns 1 if image was added (for static shape counting), 0 otherwise
+function addSlideImage(
+  slide: any, // PptxGenJS slide object
+  imageData: string | undefined,
+  position: 'right-hero' | 'bottom-right' | 'bottom-left' | 'center-bg' | 'right-strip',
+  opacity?: number
+): number {
+  if (!imageData) return 0;
+  try {
+    const imgSrc = `image/png;base64,${imageData}`;
+    switch (position) {
+      case 'right-hero':
+        // Large image on right side (title/closing slides)
+        slide.addImage({
+          data: imgSrc,
+          x: SLIDE_WIDTH - 3.8,
+          y: (SLIDE_HEIGHT - 3.5) / 2,
+          w: 3.5,
+          h: 3.5,
+          rounding: true,
+        });
+        return 1;
+      case 'bottom-right':
+        // Small-medium decorative image, bottom-right corner
+        slide.addImage({
+          data: imgSrc,
+          x: SLIDE_WIDTH - 2.6,
+          y: SLIDE_HEIGHT - 2.4,
+          w: 2.2,
+          h: 2.2,
+          rounding: true,
+        });
+        return 1;
+      case 'bottom-left':
+        // Small decorative image, bottom-left
+        slide.addImage({
+          data: imgSrc,
+          x: 0.3,
+          y: SLIDE_HEIGHT - 2.2,
+          w: 2.0,
+          h: 2.0,
+          rounding: true,
+        });
+        return 1;
+      case 'center-bg':
+        // Large centered background image
+        slide.addImage({
+          data: imgSrc,
+          x: (SLIDE_WIDTH - 4) / 2,
+          y: (SLIDE_HEIGHT - 4) / 2,
+          w: 4,
+          h: 4,
+        });
+        return 1;
+      case 'right-strip':
+        // Narrow strip on the right for horizontal bar layouts
+        slide.addImage({
+          data: imgSrc,
+          x: SLIDE_WIDTH - 2.3,
+          y: 0.8,
+          w: 2.0,
+          h: 2.0,
+          rounding: true,
+        });
+        return 1;
+      default:
+        return 0;
+    }
+  } catch (err) {
+    console.error('Failed to add image to slide:', err);
+    return 0;
+  }
+}
+
 function getTheme(themeName: string): ColorTheme {
   const theme = COLOR_THEMES[themeName as ColorThemeName];
   return theme || COLOR_THEMES['navy-gold'];
@@ -188,32 +263,38 @@ function addTitleSlide(
     line: { type: 'none' },
   });
 
-  // Title
+  // AI-generated image — right side hero
+  const hasImage = !!slide.imageData;
+  if (hasImage) {
+    addSlideImage(titleSlide, slide.imageData, 'right-hero');
+  }
+
+  // Title — shift left if image present
   titleSlide.addText(slide.title, {
     x: MARGIN + 0.5,
     y: 1.2,
-    w: SLIDE_WIDTH - 2 * MARGIN - 1,
+    w: hasImage ? SLIDE_WIDTH - 4.8 : SLIDE_WIDTH - 2 * MARGIN - 1,
     h: 1.5,
-    fontSize: 42,
+    fontSize: hasImage ? 36 : 42,
     bold: true,
     fontFace: 'Trebuchet MS',
     color: 'FFFFFF',
-    align: 'center',
+    align: hasImage ? 'left' : 'center',
     valign: 'middle',
     wrap: true,
   });
 
-  // Subtitle
+  // Subtitle — shift left if image present
   if (slide.subtitle) {
     titleSlide.addText(slide.subtitle, {
-      x: MARGIN + 1,
+      x: hasImage ? MARGIN + 0.5 : MARGIN + 1,
       y: 3.3,
-      w: SLIDE_WIDTH - 2 * MARGIN - 2,
+      w: hasImage ? SLIDE_WIDTH - 5 : SLIDE_WIDTH - 2 * MARGIN - 2,
       h: 0.9,
       fontSize: 18,
       fontFace: 'Calibri',
       color: theme.secondary,
-      align: 'center',
+      align: hasImage ? 'left' : 'center',
       valign: 'middle',
       wrap: true,
     });
@@ -267,6 +348,9 @@ function addCardsGridSlide(
     fontSize: 10, fontFace: 'Calibri', color: '999999', align: 'right',
   });
   staticShapes++;
+
+  // AI-generated image — behind content as decoration
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-right');
 
   // Content cards — animated pairs
   const points = slide.points || [];
@@ -362,10 +446,14 @@ function addHorizontalBarsSlide(
   });
   staticShapes++;
 
+  // AI-generated image — right strip decoration
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'right-strip');
+
   // Horizontal bar items — animated pairs
   const points = slide.points || [];
+  const hasImg = !!slide.imageData;
   const barHeight = Math.min((SLIDE_HEIGHT - 1.1 - MARGIN) / points.length - 0.08, 0.7);
-  const barWidth = SLIDE_WIDTH - MARGIN - 0.6;
+  const barWidth = hasImg ? SLIDE_WIDTH - MARGIN - 2.8 : SLIDE_WIDTH - MARGIN - 0.6;
 
   points.forEach((point, index) => {
     const y = 0.95 + index * (barHeight + 0.08);
@@ -447,6 +535,9 @@ function addNumberedPointsSlide(
   });
   staticShapes++;
 
+  // AI-generated image — bottom-left decoration
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-left');
+
   // Numbered points — animated pairs (number badge = bg, text = text)
   const points = slide.points || [];
   const itemHeight = Math.min((SLIDE_HEIGHT - 1.0 - MARGIN) / points.length - 0.06, 0.65);
@@ -516,6 +607,9 @@ function addAccentHeaderSlide(
     fontSize: 10, fontFace: 'Calibri', color: '999999', align: 'right',
   });
   staticShapes++;
+
+  // AI-generated image — bottom-right decoration
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-right');
 
   // Content cards below header
   const points = slide.points || [];
@@ -623,6 +717,9 @@ function addDarkCardsSlide(
   });
   staticShapes++;
 
+  // AI-generated image — bottom-right decoration
+  staticShapes += addSlideImage(contentSlide, slide.imageData, 'bottom-right');
+
   // Light cards on dark bg
   const points = slide.points || [];
   const colCount = points.length <= 4 ? 2 : 3;
@@ -704,6 +801,9 @@ function addComparisonSlide(
     color: 'FFFFFF', align: 'left', valign: 'middle',
   });
 
+  // AI-generated image — bottom-right decoration
+  addSlideImage(comparisonSlide, slide.imageData, 'bottom-right');
+
   // Two-column layout
   const points = slide.points || [];
   const colWidth = (SLIDE_WIDTH - 2 * MARGIN - 0.3) / 2;
@@ -765,12 +865,12 @@ function addComparisonSlide(
   });
 
   // Each point (left + right) = 3 shapes (bg rect + icon + text) — proper animation triples
-  const staticCount = 2; // top accent band + title on band
+  const staticCount = 2 + (slide.imageData ? 1 : 0); // top accent band + title on band + optional image
   slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount, shapesPerCard: 3 });
   comparisonSlide.addNotes(slide.speakerNotes);
 }
 
-// âââ CLOSING SLIDE âââ
+// ─── CLOSING SLIDE ───
 function addClosingSlide(
   pres: PptxGenJS,
   slide: SlideData,
@@ -783,7 +883,7 @@ function addClosingSlide(
 
   let staticShapes = 0;
 
-  // Geometric accent â large tilted rectangle bottom left
+  // Geometric accent — large tilted rectangle bottom left
   closingSlide.addShape(pres.ShapeType.rect, {
     x: -1, y: SLIDE_HEIGHT - 2, w: 3, h: 3,
     fill: { color: lightenColor(theme.primary, 0.15), transparency: 35 },
@@ -801,7 +901,7 @@ function addClosingSlide(
   });
   staticShapes++;
 
-  // Accent circle â top right
+  // Accent circle — top right
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: SLIDE_WIDTH - 1.5, y: 0.3, w: 1.2, h: 1.2,
     fill: { color: theme.secondary, transparency: 30 },
@@ -809,7 +909,7 @@ function addClosingSlide(
   });
   staticShapes++;
 
-  // Small accent circle â bottom right
+  // Small accent circle — bottom right
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: SLIDE_WIDTH - 2.8, y: SLIDE_HEIGHT - 1.2, w: 0.5, h: 0.5,
     fill: { color: theme.accent, transparency: 40 },
@@ -817,7 +917,7 @@ function addClosingSlide(
   });
   staticShapes++;
 
-  // Small decorative circle â left side
+  // Small decorative circle — left side
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: 1.5, y: 0.5, w: 0.4, h: 0.4,
     fill: { color: theme.secondary, transparency: 50 },
@@ -833,6 +933,9 @@ function addClosingSlide(
     rotate: 8,
   });
   staticShapes++;
+
+  // AI-generated image — right hero
+  staticShapes += addSlideImage(closingSlide, slide.imageData, 'right-hero');
 
   // Main message
   closingSlide.addText(slide.title, {
