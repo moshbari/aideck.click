@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { generatePptx } from '@/lib/generate-pptx';
 import { GenerateRequest, PresentationStructure } from '@/lib/types';
+import { uploadToR2, generateSmartFilename, generateDescription } from '@/lib/r2';
+import { createClient } from '@supabase/supabase-js';
 
 export const maxDuration = 60;
 
@@ -334,7 +336,98 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Return the PPTX file as a Blob
+    // Generate smart filename based on the presentation title
+    const smartFilename = generateSmartFilename(structure.title);
+    const description = generateDescription(prompt, structure.title);
+
+    // Upload to R2 in the background (don't block the response)
+    // We fire-and-forget for speed — the file is also returned directly to the user
+    const r2UploadPromise = (async () => {
+      try {
+        // Check if R2 is configured
+        if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
+          console.log('R2 not configured — skipping cloud save');
+          return null;
+        }
+
+        const { key, size } = await uploadToR2(pptxBuffer, smartFilename, {
+          title: structure.title,
+          prompt: prompt.substring(0, 200),
+          tone: tone,
+          slides: String(slides),
+        });
+
+        // Save metadata to Supabase (using service role to bypass RLS since
+        // the request may not have auth headers for anonymous users)
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (supabaseUrl && supabaseServiceKey) {
+          const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+          // Try to get the user from the auth cookie
+          const authHeader = request.headers.get('cookie') || '';
+          let userId: string | null = null;
+
+          // Parse the Supabase auth token from cookies
+          const tokenMatch = authHeader.match(/sb-[^=]+-auth-token[^=]*=([^;]+)/);
+          if (tokenMatch) {
+            try {
+              // The cookie might be base64 encoded JSON
+              let tokenValue = decodeURIComponent(tokenMatch[1]);
+              // Try to parse as JSON array (Supabase stores [access_token, refresh_token])
+              try {
+                const parsed = JSON.parse(tokenValue);
+                if (Array.isArray(parsed) && parsed[0]) {
+                  tokenValue = parsed[0];
+                }
+              } catch {
+                // Not JSON, use as-is
+              }
+              const { data: { user } } = await supabaseAdmin.auth.getUser(tokenValue);
+              if (user) userId = user.id;
+            } catch {
+              // Ignore auth errors — just won't save to user's account
+            }
+          }
+
+          if (userId) {
+            // Calculate expiration: 25 days from now
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 25);
+
+            await supabaseAdmin.from('aideck_saved_presentations').insert({
+              user_id: userId,
+              filename: smartFilename,
+              r2_key: key,
+              file_size: size,
+              title: structure.title,
+              description: description,
+              slide_count: slides,
+              tone: tone,
+              color_theme: colorTheme,
+              expires_at: expiresAt.toISOString(),
+            });
+          }
+        }
+
+        return { key, size };
+      } catch (r2Error) {
+        console.error('R2 upload error (non-blocking):', r2Error);
+        return null;
+      }
+    })();
+
+    // Don't wait for R2 upload — let it happen in background
+    // But give it a small window to complete (for the metadata to be saved)
+    // Use waitUntil-style pattern: we await with a timeout
+    const r2WithTimeout = Promise.race([
+      r2UploadPromise,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+    ]);
+
+    await r2WithTimeout;
+
+    // Return the PPTX file as a Blob with the smart filename
     const uint8Array = new Uint8Array(pptxBuffer);
     const blob = new Blob([uint8Array], {
       type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -345,7 +438,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       headers: {
         'Content-Type':
           'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'Content-Disposition': 'attachment; filename="presentation.pptx"',
+        'Content-Disposition': `attachment; filename="${smartFilename}"`,
+        'X-Presentation-Title': encodeURIComponent(structure.title),
+        'X-Presentation-Filename': encodeURIComponent(smartFilename),
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });

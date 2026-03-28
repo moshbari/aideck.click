@@ -46,6 +46,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [generatedFile, setGeneratedFile] = useState<string | null>(null);
+  const [generatedFilename, setGeneratedFilename] = useState<string>('presentation.pptx');
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [profile, setProfile] = useState<AideckProfile | null>(null);
@@ -133,9 +134,15 @@ export default function Home() {
         throw new Error(data?.error || 'Failed to generate deck');
       }
 
+      // Get the smart filename from response headers
+      const filename = res.headers.get('X-Presentation-Filename')
+        ? decodeURIComponent(res.headers.get('X-Presentation-Filename')!)
+        : 'presentation.pptx';
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       setGeneratedFile(url);
+      setGeneratedFilename(filename);
 
       // Save file URL to localStorage
       try { localStorage.setItem('aideck_last_file', url); } catch {}
@@ -201,7 +208,7 @@ export default function Home() {
     if (generatedFile) {
       const link = document.createElement('a');
       link.href = generatedFile;
-      link.download = 'presentation.pptx';
+      link.download = generatedFilename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -450,6 +457,7 @@ export default function Home() {
             <button
               onClick={() => {
                 setGeneratedFile(null);
+                setGeneratedFilename('presentation.pptx');
                 setPrompt('');
                 setLoadingMessageIndex(0);
                 setError(null);

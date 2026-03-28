@@ -44,6 +44,28 @@ CREATE TABLE IF NOT EXISTS aideck_credit_transactions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── SAVED PRESENTATIONS TABLE ───
+-- Stores metadata for presentations uploaded to R2 cloud storage
+-- Files auto-expire after 25 days via R2 lifecycle rules
+CREATE TABLE IF NOT EXISTS aideck_saved_presentations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES aideck_profiles(id) ON DELETE CASCADE,
+  generation_id UUID REFERENCES aideck_generations(id) ON DELETE SET NULL,
+  filename TEXT NOT NULL,           -- smart filename like "AI-Marketing-2026-03-28-abc123.pptx"
+  r2_key TEXT NOT NULL,             -- full R2 object key (aideck-presentations/filename)
+  file_size INTEGER NOT NULL,       -- file size in bytes
+  title TEXT NOT NULL,              -- presentation title from Claude
+  description TEXT,                 -- short summary of what the presentation is about
+  slide_count INTEGER,
+  tone TEXT,
+  color_theme TEXT,
+  expires_at TIMESTAMPTZ NOT NULL,  -- 25 days from creation
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_aideck_saved_pres_user ON aideck_saved_presentations(user_id);
+CREATE INDEX IF NOT EXISTS idx_aideck_saved_pres_expires ON aideck_saved_presentations(expires_at);
+
 -- ─── PENDING PURCHASES TABLE ───
 -- Stores WarriorPlus purchases for users who haven't signed up yet.
 -- When they sign up with the same email, credits are auto-applied.
@@ -151,6 +173,25 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 ALTER TABLE aideck_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aideck_generations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aideck_credit_transactions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE aideck_saved_presentations ENABLE ROW LEVEL SECURITY;
+
+-- Saved presentations: users see own, admins see all
+CREATE POLICY "Users can view own saved presentations"
+  ON aideck_saved_presentations FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own saved presentations"
+  ON aideck_saved_presentations FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own saved presentations"
+  ON aideck_saved_presentations FOR DELETE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all saved presentations"
+  ON aideck_saved_presentations FOR SELECT
+  USING (aideck_is_admin());
 
 -- Profiles: users can read their own, admins can read all
 CREATE POLICY "Users can view own profile"

@@ -25,6 +25,22 @@ export interface AideckGeneration {
   created_at: string;
 }
 
+export interface AideckSavedPresentation {
+  id: string;
+  user_id: string;
+  generation_id: string | null;
+  filename: string;
+  r2_key: string;
+  file_size: number;
+  title: string;
+  description: string | null;
+  slide_count: number | null;
+  tone: string | null;
+  color_theme: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
 export interface AideckCreditTransaction {
   id: string;
   user_id: string;
