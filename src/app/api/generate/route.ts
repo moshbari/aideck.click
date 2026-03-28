@@ -139,7 +139,10 @@ JSON FORMAT:
       "type": "title|content|comparison|closing",
       "title": "Slide Title",
       "subtitle": "Optional subtitle (title and closing slides only)",
-      "points": ["Point 1", "Point 2", "..."],
+      "points": [
+        { "text": "Point text here", "icon": "🎯" },
+        { "text": "Another point", "icon": "💡" }
+      ],
       "speakerNotes": "Full presenter script for this slide..."
     }
   ]
@@ -153,6 +156,12 @@ SLIDE RULES:
 5. Last slide: type "closing" — strong ending or call-to-action
 6. Titles: max 8 words, clear and direct
 7. Bullet points: max 10 words each, punchy and scannable
+
+ICONS — VERY IMPORTANT:
+- Every point MUST include an "icon" field with a SINGLE emoji that represents that point's meaning
+- Choose meaningful, diverse emojis — do NOT repeat the same icon on the same slide
+- Pick from visually clear emojis: 🎯 🚀 💡 ⭐ 🔑 📊 💰 🏆 ✅ 📈 🎓 🔒 ⚡ 🌟 💎 🎨 📱 🌍 🤝 📌 🔥 💪 🧠 📋 🛡️ ⏰ 🎉 🔧 💬 📣 🌱 🏗️ 📦 🎯 💻 🔍 📚 🧩 ⚙️ 🗺️
+- Match the icon to the content — a point about money gets 💰, security gets 🔒, speed gets ⚡, etc.
 
 READING LEVEL — IMPORTANT:
 - ALL speaker notes MUST be written at a 5th grade reading level
@@ -249,6 +258,19 @@ Return the JSON object directly.`;
 
       if (slide.points && !Array.isArray(slide.points)) {
         throw new Error('Slide points must be an array');
+      }
+
+      // Normalize points: accept both string[] (legacy) and {text, icon}[] formats
+      if (slide.points) {
+        slide.points = slide.points.map((p: any) => {
+          if (typeof p === 'string') {
+            return { text: p, icon: '▪' };
+          }
+          if (typeof p === 'object' && p.text) {
+            return { text: String(p.text), icon: p.icon || '▪' };
+          }
+          return { text: String(p), icon: '▪' };
+        });
       }
     }
 

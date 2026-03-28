@@ -1,10 +1,18 @@
 import PptxGenJS from 'pptxgenjs';
 import JSZip from 'jszip';
-import { PresentationStructure, SlideData, ColorTheme, ColorThemeName } from './types';
+import { PresentationStructure, SlideData, SlidePoint, ColorTheme, ColorThemeName } from './types';
+
+// Helper to extract text from a point (supports both old string[] and new SlidePoint[] format)
+function getPointText(point: SlidePoint | string): string {
+  return typeof point === 'string' ? point : point.text;
+}
+function getPointIcon(point: SlidePoint | string): string {
+  return typeof point === 'string' ? '▪' : (point.icon || '▪');
+}
 
 // Track animation metadata per slide
-// Key: slide index, Value: { cardCount, staticCount }
-const slideAnimationMeta: Map<number, { cardCount: number; staticCount: number }> = new Map();
+// Key: slide index, Value: { cardCount, staticCount, shapesPerCard }
+const slideAnimationMeta: Map<number, { cardCount: number; staticCount: number; shapesPerCard: number }> = new Map();
 
 const COLOR_THEMES: Record<ColorThemeName, ColorTheme> = {
   'navy-gold': {
@@ -118,6 +126,17 @@ function addTitleSlide(
     rotate: 15,
   });
 
+  // Medium decorative rectangle — top right
+  titleSlide.addShape(pres.ShapeType.rect, {
+    x: SLIDE_WIDTH - 2.2,
+    y: -0.5,
+    w: 2.5,
+    h: 2,
+    fill: { color: lightenColor(theme.primary, 0.1), transparency: 50 },
+    line: { type: 'none' },
+    rotate: -10,
+  });
+
   // Small accent circle — top left
   titleSlide.addShape(pres.ShapeType.ellipse, {
     x: 0.4,
@@ -126,6 +145,37 @@ function addTitleSlide(
     h: 0.8,
     fill: { color: theme.secondary, transparency: 30 },
     line: { type: 'none' },
+  });
+
+  // Second small circle — bottom left
+  titleSlide.addShape(pres.ShapeType.ellipse, {
+    x: 0.8,
+    y: SLIDE_HEIGHT - 1.5,
+    w: 0.5,
+    h: 0.5,
+    fill: { color: theme.accent, transparency: 40 },
+    line: { type: 'none' },
+  });
+
+  // Third decorative circle — mid-right
+  titleSlide.addShape(pres.ShapeType.ellipse, {
+    x: SLIDE_WIDTH - 1.8,
+    y: 1.8,
+    w: 0.6,
+    h: 0.6,
+    fill: { color: theme.secondary, transparency: 45 },
+    line: { type: 'none' },
+  });
+
+  // Diagonal accent stripe — bottom left to center
+  titleSlide.addShape(pres.ShapeType.rect, {
+    x: -1,
+    y: SLIDE_HEIGHT - 0.8,
+    w: 5,
+    h: 0.08,
+    fill: { color: theme.secondary, transparency: 35 },
+    line: { type: 'none' },
+    rotate: -5,
   });
 
   // Accent bar under title area
@@ -141,7 +191,7 @@ function addTitleSlide(
   // Title
   titleSlide.addText(slide.title, {
     x: MARGIN + 0.5,
-    y: 1.4,
+    y: 1.2,
     w: SLIDE_WIDTH - 2 * MARGIN - 1,
     h: 1.5,
     fontSize: 42,
@@ -232,7 +282,8 @@ function addCardsGridSlide(
     const row = Math.floor(index / colCount);
     const x = MARGIN + col * (cardWidth + cardGap);
     const y = 1.15 + row * (cardHeight + cardGap);
-    const cardColor = lightenColor(accentPalette[(contentIndex + index) % accentPalette.length], 0.75);
+    const accentColor = accentPalette[(contentIndex + index) % accentPalette.length];
+    const cardColor = lightenColor(accentColor, 0.75);
 
     // Card bg
     contentSlide.addShape(pres.ShapeType.rect, {
@@ -243,16 +294,33 @@ function addCardsGridSlide(
       shadow: createShadow(),
     });
 
-    // Card text
-    contentSlide.addText(point, {
-      x: x + 0.2, y: y + 0.15, w: cardWidth - 0.4, h: cardHeight - 0.3,
-      fontSize: 13, bold: true, fontFace: 'Calibri',
-      color: darkenColor(accentPalette[(contentIndex + index) % accentPalette.length], 0.3),
-      align: 'center', valign: 'middle', wrap: true,
+    // Icon circle at top of card
+    const iconSize = 0.5;
+    contentSlide.addText(getPointIcon(point), {
+      x: x + (cardWidth - iconSize) / 2,
+      y: y + 0.12,
+      w: iconSize,
+      h: iconSize,
+      fontSize: 18,
+      fontFace: 'Segoe UI Emoji',
+      align: 'center',
+      valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: accentColor },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+    });
+
+    // Card text — shifted down to make room for icon
+    contentSlide.addText(getPointText(point), {
+      x: x + 0.15, y: y + iconSize + 0.15, w: cardWidth - 0.3, h: cardHeight - iconSize - 0.3,
+      fontSize: 12, bold: true, fontFace: 'Calibri',
+      color: darkenColor(accentColor, 0.3),
+      align: 'center', valign: 'top', wrap: true,
     });
   });
 
-  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes });
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
   contentSlide.addNotes(slide.speakerNotes);
 }
 
@@ -303,7 +371,7 @@ function addHorizontalBarsSlide(
     const y = 0.95 + index * (barHeight + 0.08);
     const barAccent = accentPalette[(contentIndex + index) % accentPalette.length];
 
-    // Bar bg with colored left border (accent integrated into the shape)
+    // Bar bg with colored left border
     contentSlide.addShape(pres.ShapeType.rect, {
       x: 0.35, y, w: barWidth, h: barHeight,
       fill: { color: lightenColor(barAccent, 0.9) },
@@ -311,16 +379,33 @@ function addHorizontalBarsSlide(
       shadow: createShadow(),
     });
 
-    // Bar text
-    contentSlide.addText(point, {
-      x: 0.7, y, w: barWidth - 0.5, h: barHeight,
+    // Icon circle on left side of bar
+    const iconSize = Math.min(barHeight - 0.08, 0.45);
+    contentSlide.addText(getPointIcon(point), {
+      x: 0.45,
+      y: y + (barHeight - iconSize) / 2,
+      w: iconSize,
+      h: iconSize,
+      fontSize: 15,
+      fontFace: 'Segoe UI Emoji',
+      align: 'center',
+      valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: barAccent },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+    });
+
+    // Bar text — shifted right for icon
+    contentSlide.addText(getPointText(point), {
+      x: 0.45 + iconSize + 0.15, y, w: barWidth - iconSize - 0.6, h: barHeight,
       fontSize: 13, fontFace: 'Calibri', bold: true,
       color: '333333', align: 'left', valign: 'middle', wrap: true,
     });
   });
 
-  // Each item = 2 shapes (bar bg + text) — proper animation pairs
-  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes });
+  // Each item = 3 shapes (bar bg + icon + text) — animation pairs use bg + text
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
   contentSlide.addNotes(slide.speakerNotes);
 }
 
@@ -370,10 +455,10 @@ function addNumberedPointsSlide(
     const y = 0.9 + index * (itemHeight + 0.06);
     const numColor = accentPalette[(contentIndex + index) % accentPalette.length];
 
-    // Number badge — single text shape with circle fill (combines circle + number into 1 shape)
-    contentSlide.addText(String(index + 1), {
-      x: MARGIN, y: y + (itemHeight - 0.45) / 2, w: 0.45, h: 0.45,
-      fontSize: 16, bold: true, fontFace: 'Calibri',
+    // Icon badge — emoji in colored circle
+    contentSlide.addText(getPointIcon(point), {
+      x: MARGIN, y: y + (itemHeight - 0.5) / 2, w: 0.5, h: 0.5,
+      fontSize: 18, fontFace: 'Segoe UI Emoji',
       color: 'FFFFFF', align: 'center', valign: 'middle',
       shape: pres.ShapeType.ellipse,
       fill: { color: numColor },
@@ -381,15 +466,15 @@ function addNumberedPointsSlide(
     });
 
     // Point text
-    contentSlide.addText(point, {
-      x: MARGIN + 0.65, y, w: SLIDE_WIDTH - MARGIN - 1.3, h: itemHeight,
+    contentSlide.addText(getPointText(point), {
+      x: MARGIN + 0.7, y, w: SLIDE_WIDTH - MARGIN - 1.4, h: itemHeight,
       fontSize: 13, fontFace: 'Calibri', bold: true,
       color: '333333', align: 'left', valign: 'middle', wrap: true,
     });
   });
 
-  // Each item = 2 shapes (number badge + point text) — proper animation pairs
-  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes });
+  // Each item = 2 shapes (icon badge + point text) — proper animation pairs
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
   contentSlide.addNotes(slide.speakerNotes);
 }
 
@@ -447,7 +532,7 @@ function addAccentHeaderSlide(
     const x = MARGIN + col * (cardWidth + cardGap);
     const y = 1.2 + row * (cardHeight + cardGap);
 
-    // Card bg — white with subtle border
+    // Card bg — white with colored top border
     contentSlide.addShape(pres.ShapeType.rect, {
       x, y, w: cardWidth, h: cardHeight,
       fill: { color: 'FFFFFF' },
@@ -456,15 +541,39 @@ function addAccentHeaderSlide(
       shadow: createShadow(),
     });
 
-    // Card text
-    contentSlide.addText(point, {
-      x: x + 0.2, y: y + 0.15, w: cardWidth - 0.4, h: cardHeight - 0.3,
-      fontSize: 13, bold: true, fontFace: 'Calibri',
-      color: '333333', align: 'center', valign: 'middle', wrap: true,
+    // Colored top strip on card
+    contentSlide.addShape(pres.ShapeType.rect, {
+      x: x + 0.06, y, w: cardWidth - 0.12, h: 0.05,
+      fill: { color: headerColor },
+      line: { type: 'none' },
+    });
+
+    // Icon at top of card
+    const iconSize = 0.45;
+    contentSlide.addText(getPointIcon(point), {
+      x: x + (cardWidth - iconSize) / 2,
+      y: y + 0.12,
+      w: iconSize,
+      h: iconSize,
+      fontSize: 16,
+      fontFace: 'Segoe UI Emoji',
+      align: 'center',
+      valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: lightenColor(headerColor, 0.15) },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+    });
+
+    // Card text — shifted down for icon
+    contentSlide.addText(getPointText(point), {
+      x: x + 0.15, y: y + iconSize + 0.18, w: cardWidth - 0.3, h: cardHeight - iconSize - 0.35,
+      fontSize: 12, bold: true, fontFace: 'Calibri',
+      color: '333333', align: 'center', valign: 'top', wrap: true,
     });
   });
 
-  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes });
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
   contentSlide.addNotes(slide.speakerNotes);
 }
 
@@ -539,16 +648,33 @@ function addDarkCardsSlide(
       shadow: createShadow(),
     });
 
-    // Card text
-    contentSlide.addText(point, {
-      x: x + 0.2, y: y + 0.15, w: cardWidth - 0.4, h: cardHeight - 0.3,
-      fontSize: 13, bold: true, fontFace: 'Calibri',
+    // Icon circle at top of card (contrasting on light card)
+    const iconSize = 0.5;
+    contentSlide.addText(getPointIcon(point), {
+      x: x + (cardWidth - iconSize) / 2,
+      y: y + 0.1,
+      w: iconSize,
+      h: iconSize,
+      fontSize: 18,
+      fontFace: 'Segoe UI Emoji',
+      align: 'center',
+      valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: cardAccent },
+      line: { type: 'none' },
+      color: 'FFFFFF',
+    });
+
+    // Card text — shifted down for icon
+    contentSlide.addText(getPointText(point), {
+      x: x + 0.15, y: y + iconSize + 0.12, w: cardWidth - 0.3, h: cardHeight - iconSize - 0.25,
+      fontSize: 12, bold: true, fontFace: 'Calibri',
       color: darkenColor(cardAccent, 0.3),
-      align: 'center', valign: 'middle', wrap: true,
+      align: 'center', valign: 'top', wrap: true,
     });
   });
 
-  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes });
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount: staticShapes, shapesPerCard: 3 });
   contentSlide.addNotes(slide.speakerNotes);
 }
 
@@ -597,8 +723,17 @@ function addComparisonSlide(
       line: { type: 'none' },
       shadow: createShadow(),
     });
-    comparisonSlide.addText(point, {
-      x: leftX + 0.15, y, w: colWidth - 0.3, h: itemHeight,
+    // Icon
+    const iconSz = Math.min(itemHeight - 0.08, 0.38);
+    comparisonSlide.addText(getPointIcon(point), {
+      x: leftX + 0.1, y: y + (itemHeight - iconSz) / 2, w: iconSz, h: iconSz,
+      fontSize: 13, fontFace: 'Segoe UI Emoji',
+      align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: theme.primary }, line: { type: 'none' }, color: 'FFFFFF',
+    });
+    comparisonSlide.addText(getPointText(point), {
+      x: leftX + 0.1 + iconSz + 0.1, y, w: colWidth - iconSz - 0.4, h: itemHeight,
       fontSize: 12, fontFace: 'Calibri', bold: true,
       color: theme.primary, align: 'left', valign: 'middle', wrap: true,
     });
@@ -613,16 +748,25 @@ function addComparisonSlide(
       line: { type: 'none' },
       shadow: createShadow(),
     });
-    comparisonSlide.addText(point, {
-      x: rightX + 0.15, y, w: colWidth - 0.3, h: itemHeight,
+    // Icon
+    const iconSz = Math.min(itemHeight - 0.08, 0.38);
+    comparisonSlide.addText(getPointIcon(point), {
+      x: rightX + 0.1, y: y + (itemHeight - iconSz) / 2, w: iconSz, h: iconSz,
+      fontSize: 13, fontFace: 'Segoe UI Emoji',
+      align: 'center', valign: 'middle',
+      shape: pres.ShapeType.ellipse,
+      fill: { color: theme.accent }, line: { type: 'none' }, color: 'FFFFFF',
+    });
+    comparisonSlide.addText(getPointText(point), {
+      x: rightX + 0.1 + iconSz + 0.1, y, w: colWidth - iconSz - 0.4, h: itemHeight,
       fontSize: 12, fontFace: 'Calibri', bold: true,
       color: darkenColor(theme.accent, 0.2), align: 'left', valign: 'middle', wrap: true,
     });
   });
 
-  // Each point (left + right) = 2 shapes (bg rect + text) — proper animation pairs
+  // Each point (left + right) = 3 shapes (bg rect + icon + text) — proper animation triples
   const staticCount = 2; // top accent band + title on band
-  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount });
+  slideAnimationMeta.set(slideIndex, { cardCount: points.length, staticCount, shapesPerCard: 3 });
   comparisonSlide.addNotes(slide.speakerNotes);
 }
 
@@ -635,7 +779,7 @@ function addClosingSlide(
   const closingSlide = pres.addSlide();
   closingSlide.background = { color: theme.primary };
 
-  // Geometric accent — large tilted rectangle
+  // Geometric accent — large tilted rectangle bottom left
   closingSlide.addShape(pres.ShapeType.rect, {
     x: -1, y: SLIDE_HEIGHT - 2, w: 3, h: 3,
     fill: { color: lightenColor(theme.primary, 0.15), transparency: 35 },
@@ -643,14 +787,44 @@ function addClosingSlide(
     rotate: -20,
   });
 
-  // Accent circle
+  // Large tilted rectangle top right (mirror effect)
+  closingSlide.addShape(pres.ShapeType.rect, {
+    x: SLIDE_WIDTH - 2.5, y: -1, w: 3, h: 2.5,
+    fill: { color: lightenColor(theme.primary, 0.1), transparency: 45 },
+    line: { type: 'none' },
+    rotate: 15,
+  });
+
+  // Accent circle — top right
   closingSlide.addShape(pres.ShapeType.ellipse, {
     x: SLIDE_WIDTH - 1.5, y: 0.3, w: 1.2, h: 1.2,
     fill: { color: theme.secondary, transparency: 30 },
     line: { type: 'none' },
   });
 
-  // Accent bar
+  // Small accent circle — bottom right
+  closingSlide.addShape(pres.ShapeType.ellipse, {
+    x: SLIDE_WIDTH - 2.8, y: SLIDE_HEIGHT - 1.2, w: 0.5, h: 0.5,
+    fill: { color: theme.accent, transparency: 40 },
+    line: { type: 'none' },
+  });
+
+  // Small decorative circle — left side
+  closingSlide.addShape(pres.ShapeType.ellipse, {
+    x: 1.5, y: 0.5, w: 0.4, h: 0.4,
+    fill: { color: theme.secondary, transparency: 50 },
+    line: { type: 'none' },
+  });
+
+  // Diagonal accent stripe
+  closingSlide.addShape(pres.ShapeType.rect, {
+    x: -0.5, y: 0.7, w: 4, h: 0.06,
+    fill: { color: theme.secondary, transparency: 35 },
+    line: { type: 'none' },
+    rotate: 8,
+  });
+
+  // Accent bar above CTA
   closingSlide.addShape(pres.ShapeType.rect, {
     x: SLIDE_WIDTH / 2 - 1, y: 3.1,
     w: 2, h: 0.05,
@@ -661,7 +835,7 @@ function addClosingSlide(
   // Main message
   closingSlide.addText(slide.title, {
     x: MARGIN + 0.5,
-    y: 1.3,
+    y: 1.1,
     w: SLIDE_WIDTH - 2 * MARGIN - 1,
     h: 1.6,
     fontSize: 40,
@@ -698,7 +872,8 @@ function addClosingSlide(
 function buildAnimationTimingXml(
   shapeIds: number[],
   staticCount: number,
-  cardCount: number
+  cardCount: number,
+  shapesPerCard: number = 3
 ): string {
   // Collect animated shape IDs for bldLst
   const animatedShapeIds: number[] = [];
@@ -709,72 +884,58 @@ function buildAnimationTimingXml(
 
   let clickParBlocks = '';
   for (let card = 0; card < cardCount; card++) {
-    const bgShapeIdx = staticCount + card * 2;
-    const textShapeIdx = staticCount + card * 2 + 1;
+    // Gather all shape IDs for this card (bg, icon, text — or bg, text for legacy)
+    const cardShapeIds: number[] = [];
+    for (let s = 0; s < shapesPerCard; s++) {
+      const idx = staticCount + card * shapesPerCard + s;
+      const spId = shapeIds[idx];
+      if (spId) cardShapeIds.push(spId);
+    }
+    if (cardShapeIds.length === 0) continue;
 
-    const bgSpId = shapeIds[bgShapeIdx];
-    const textSpId = shapeIds[textShapeIdx];
-    if (!bgSpId || !textSpId) continue;
-
-    animatedShapeIds.push(bgSpId, textSpId);
+    animatedShapeIds.push(...cardShapeIds);
 
     const outerParId = nextId();
-    const bgInnerId = nextId();
-    const bgEffectId = nextId();
-    const bgSetId = nextId();
-    const txtInnerId = nextId();
-    const txtEffectId = nextId();
-    const txtSetId = nextId();
+
+    // Build child par blocks for each shape in the card
+    let shapeParBlocks = '';
+    cardShapeIds.forEach((spId, i) => {
+      const innerId = nextId();
+      const effectId = nextId();
+      const setId = nextId();
+      // First shape is clickEffect, rest are withEffect (appear simultaneously)
+      const nodeType = i === 0 ? 'clickEffect' : 'withEffect';
+
+      shapeParBlocks += `
+            <p:par>
+              <p:cTn id="${innerId}" fill="hold">
+                <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+                <p:childTnLst>
+                  <p:par>
+                    <p:cTn id="${effectId}" presetID="1" presetClass="entr" presetSubtype="0" fill="hold" grpId="0" nodeType="${nodeType}">
+                      <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+                      <p:childTnLst>
+                        <p:set>
+                          <p:cBhvr>
+                            <p:cTn id="${setId}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn>
+                            <p:tgtEl><p:spTgt spid="${spId}"/></p:tgtEl>
+                            <p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst>
+                          </p:cBhvr>
+                          <p:to><p:strVal val="visible"/></p:to>
+                        </p:set>
+                      </p:childTnLst>
+                    </p:cTn>
+                  </p:par>
+                </p:childTnLst>
+              </p:cTn>
+            </p:par>`;
+    });
 
     clickParBlocks += `
       <p:par>
         <p:cTn id="${outerParId}" fill="hold">
           <p:stCondLst><p:cond delay="0"/></p:stCondLst>
-          <p:childTnLst>
-            <p:par>
-              <p:cTn id="${bgInnerId}" fill="hold">
-                <p:stCondLst><p:cond delay="0"/></p:stCondLst>
-                <p:childTnLst>
-                  <p:par>
-                    <p:cTn id="${bgEffectId}" presetID="1" presetClass="entr" presetSubtype="0" fill="hold" grpId="0" nodeType="clickEffect">
-                      <p:stCondLst><p:cond delay="0"/></p:stCondLst>
-                      <p:childTnLst>
-                        <p:set>
-                          <p:cBhvr>
-                            <p:cTn id="${bgSetId}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn>
-                            <p:tgtEl><p:spTgt spid="${bgSpId}"/></p:tgtEl>
-                            <p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst>
-                          </p:cBhvr>
-                          <p:to><p:strVal val="visible"/></p:to>
-                        </p:set>
-                      </p:childTnLst>
-                    </p:cTn>
-                  </p:par>
-                </p:childTnLst>
-              </p:cTn>
-            </p:par>
-            <p:par>
-              <p:cTn id="${txtInnerId}" fill="hold">
-                <p:stCondLst><p:cond delay="0"/></p:stCondLst>
-                <p:childTnLst>
-                  <p:par>
-                    <p:cTn id="${txtEffectId}" presetID="1" presetClass="entr" presetSubtype="0" fill="hold" grpId="0" nodeType="withEffect">
-                      <p:stCondLst><p:cond delay="0"/></p:stCondLst>
-                      <p:childTnLst>
-                        <p:set>
-                          <p:cBhvr>
-                            <p:cTn id="${txtSetId}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn>
-                            <p:tgtEl><p:spTgt spid="${textSpId}"/></p:tgtEl>
-                            <p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst>
-                          </p:cBhvr>
-                          <p:to><p:strVal val="visible"/></p:to>
-                        </p:set>
-                      </p:childTnLst>
-                    </p:cTn>
-                  </p:par>
-                </p:childTnLst>
-              </p:cTn>
-            </p:par>
+          <p:childTnLst>${shapeParBlocks}
           </p:childTnLst>
         </p:cTn>
       </p:par>`;
@@ -830,7 +991,7 @@ async function injectAnimations(buffer: Buffer): Promise<Buffer> {
       })
       .filter((id): id is number => id !== null);
 
-    const timingXml = buildAnimationTimingXml(shapeIds, meta.staticCount, meta.cardCount);
+    const timingXml = buildAnimationTimingXml(shapeIds, meta.staticCount, meta.cardCount, meta.shapesPerCard);
 
     // Remove any existing timing, then inject new
     let newXml = xml.replace(/<p:timing>[\s\S]*?<\/p:timing>/, '');

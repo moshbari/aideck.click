@@ -1,10 +1,15 @@
 export type SlideType = 'title' | 'content' | 'comparison' | 'closing';
 
+export interface SlidePoint {
+  text: string;
+  icon: string; // single emoji character (e.g. 🎯, 💡, 🚀)
+}
+
 export interface SlideData {
   type: SlideType;
   title: string;
   subtitle?: string;
-  points?: string[];
+  points?: SlidePoint[];
   speakerNotes: string;
 }
 
