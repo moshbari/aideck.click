@@ -94,12 +94,12 @@ export default function Home() {
 
     // Credit/free deck check
     if (profile) {
-      if (profile.plan === 'free' && profile.lifetime_free_decks_used >= profile.lifetime_free_decks_limit) {
-        setError("You've used your 2 free decks. Sign in to your dashboard to buy credits and upgrade!");
-        return;
-      }
-      if (profile.plan === 'pro' && profile.credits <= 0) {
-        setError("You're out of credits. Visit your dashboard to buy more!");
+      const hasFreeDeck = profile.lifetime_free_decks_used < profile.lifetime_free_decks_limit;
+      const hasCredits = profile.credits > 0;
+      if (!hasFreeDeck && !hasCredits) {
+        setError(profile.plan === 'free'
+          ? "You've used your 2 free decks. Sign in to your dashboard to buy credits and upgrade!"
+          : "You're out of credits. Visit your dashboard to buy more!");
         return;
       }
       if (profile.status === 'inactive') {
@@ -158,16 +158,19 @@ export default function Home() {
           slide_count: slides,
           color_theme: COLOR_OPTIONS[colorIndex].value,
           animations,
-          credits_used: profile.plan === 'free' ? 0 : 1,
+          credits_used: (profile.plan === 'free' && profile.lifetime_free_decks_used < profile.lifetime_free_decks_limit) ? 0 : 1,
         }).select().single();
 
-        if (profile.plan === 'free') {
-          // Increment free deck usage
+        const useFreeDeck = profile.plan === 'free'
+          && profile.lifetime_free_decks_used < profile.lifetime_free_decks_limit;
+
+        if (useFreeDeck) {
+          // Use a free deck slot
           const newUsed = profile.lifetime_free_decks_used + 1;
           await supabase.from('aideck_profiles').update({ lifetime_free_decks_used: newUsed }).eq('id', user.id);
           setProfile({ ...profile, lifetime_free_decks_used: newUsed });
         } else {
-          // Deduct credit for pro users
+          // Deduct a paid credit (works for both free-plan users with credits AND pro users)
           const newCredits = profile.credits - 1;
           await supabase.from('aideck_profiles').update({ credits: newCredits }).eq('id', user.id);
           await supabase.from('aideck_credit_transactions').insert({
@@ -233,9 +236,11 @@ export default function Home() {
             <>
               {profile && (
                 <span className="text-sm text-gray-400">
-                  {profile.plan === 'free'
-                    ? `${profile.lifetime_free_decks_limit - profile.lifetime_free_decks_used} free decks left`
-                    : `${profile.credits} credits`}
+                  {profile.credits > 0
+                    ? `${profile.credits} credits`
+                    : profile.plan === 'free'
+                      ? `${Math.max(0, profile.lifetime_free_decks_limit - profile.lifetime_free_decks_used)} free decks left`
+                      : '0 credits'}
                 </span>
               )}
               <a
