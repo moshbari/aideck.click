@@ -297,7 +297,7 @@ Return the JSON object directly.`;
   }
 }
 
-// ─── DALL-E Image Generation ───
+// ─── AI Image Generation (GPT Image 1.5) ───
 async function generateSlideImages(slides: SlideData[]): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -313,19 +313,18 @@ async function generateSlideImages(slides: SlideData[]): Promise<void> {
 
     try {
       const response = await openai.images.generate({
-        model: 'dall-e-3',
+        model: 'gpt-image-1.5',
         prompt: `${slide.imagePrompt}. Style: flat vector illustration, clean modern style, simple geometric shapes, vibrant colors, no text, no words, no letters, no numbers, presentation-ready graphic, white or transparent background.`,
         n: 1,
         size: '1024x1024',
-        response_format: 'b64_json',
-        quality: 'standard',
+        quality: 'low',
       });
 
       if (response.data && response.data[0]?.b64_json) {
         slide.imageData = response.data[0].b64_json;
       }
     } catch (error) {
-      console.error(`DALL-E error for slide ${index + 1}:`, error instanceof Error ? error.message : error);
+      console.error(`Image generation error for slide ${index + 1}:`, error instanceof Error ? error.message : error);
       // Non-fatal: slide just won't have an image
     }
   });
