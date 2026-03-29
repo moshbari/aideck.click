@@ -332,12 +332,18 @@ export default function AdminPage() {
                 {/* Preview strip */}
                 <div className="flex items-center gap-3 mb-3">
                   <div
-                    className={`w-10 h-10 rounded-lg border-2 ${
+                    className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center ${
                       opt.id === 'dark'
                         ? 'bg-gray-950 border-orange-500'
                         : 'bg-white border-blue-600'
                     }`}
-                  />
+                  >
+                    {currentTheme === opt.id && (
+                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
                   <div className="font-semibold text-lg">{opt.label}</div>
                 </div>
                 <p className="text-gray-400 text-sm">{opt.description}</p>

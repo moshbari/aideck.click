@@ -188,18 +188,20 @@ button:focus {
 
 /* Brand gradient button — override to tertiary burnt orange */
 [data-theme="deckai"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
-  background: linear-gradient(to right, #863500, #ad4600) !important;
+  background-image: linear-gradient(to right, #863500, #ad4600) !important;
 }
 [data-theme="deckai"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
-  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+  background-image: linear-gradient(to right, #003ec7, #0052ff) !important;
 }
 
-/* Brand gradient text (logo, headlines) — use blue */
+/* Brand gradient text (logo, headlines) — use blue
+   MUST use background-image, NOT background shorthand,
+   otherwise it resets background-clip:text and you see a solid block */
 [data-theme="deckai"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
-  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+  background-image: linear-gradient(to right, #003ec7, #0052ff) !important;
 }
 [data-theme="deckai"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
-  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+  background-image: linear-gradient(to right, #003ec7, #0052ff) !important;
 }
 
 /* ── Orange text accents → blue ── */
@@ -262,7 +264,7 @@ button:focus {
 
 /* ── Peer-checked (toggle switches) ── */
 [data-theme="deckai"] .peer-checked\:bg-gradient-to-r {
-  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+  background-image: linear-gradient(to right, #003ec7, #0052ff) !important;
 }
 
 /* ── Nav bar in light theme ── */
@@ -312,7 +314,7 @@ button:focus {
 
 /* ── Pro Access card gradient ── */
 [data-theme="deckai"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
-  background: linear-gradient(to bottom right, rgba(0, 62, 199, 0.08), rgba(0, 82, 255, 0.08)) !important;
+  background-image: linear-gradient(to bottom right, rgba(0, 62, 199, 0.08), rgba(0, 82, 255, 0.08)) !important;
 }
 
 /* ── Credit pack best deal border ── */
@@ -372,4 +374,62 @@ button:focus {
 /* ── Admin theme section specific ── */
 [data-theme="deckai"] .ring-2.ring-blue-500 {
   --tw-ring-color: #003ec7 !important;
+}
+
+/* ── Additional light theme fixes ── */
+
+/* Ensure font-semibold text labels are dark enough */
+[data-theme="deckai"] .font-semibold.text-gray-300 {
+  color: #1a1c1c !important;
+}
+
+/* Hover on gradient overrides for credit pack links */
+[data-theme="deckai"] .hover\:from-orange-500\/20:hover {
+  --tw-gradient-from: rgba(0, 62, 199, 0.2) !important;
+}
+[data-theme="deckai"] .hover\:to-pink-500\/20:hover {
+  --tw-gradient-to: rgba(0, 82, 255, 0.2) !important;
+}
+
+/* Group hover text orange → blue */
+[data-theme="deckai"] .group-hover\:text-orange-400 {
+  color: #003ec7 !important;
+}
+
+/* Ensure bg-gray-800 items (buttons, mic) look right on light */
+[data-theme="deckai"] .bg-gray-800.border.border-gray-700 {
+  background-color: #e8e8e8 !important;
+  border-color: #c3c5d9 !important;
+}
+
+/* Line-through prices stay visible */
+[data-theme="deckai"] .line-through {
+  color: #737688 !important;
+}
+
+/* Sign Up Free button on pricing — keep white text on gradient */
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white,
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500.text-white {
+  color: #ffffff !important;
+}
+
+/* Number circle badges in How It Works — keep white text */
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.to-pink-500 .text-white,
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.font-bold {
+  color: #ffffff !important;
+}
+
+/* Best Deal badge text stays white */
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.text-\[10px\] {
+  color: #ffffff !important;
+}
+
+/* Ensure selected pill buttons keep white text */
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.shadow-lg {
+  color: #ffffff !important;
+}
+
+/* Admin header — keep gradient text working on light bg */
+[data-theme="deckai"] .bg-gray-950 {
+  background-color: #f9f9f9 !important;
 }
