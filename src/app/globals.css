@@ -635,38 +635,38 @@ button:focus {
 
 /* ═══════════════════════════════════════════════════════
    VELVET ROSE THEME — Accent Overrides
-   Primary: #b80035  Light: #e11d48
+   Gradient: deep crimson #be123c → hot pink #ec4899
    ═══════════════════════════════════════════════════════ */
 
-/* ── Gradient overrides: orange→pink becomes rose ── */
+/* ── Gradient overrides: orange→pink becomes crimson→hot-pink ── */
 [data-theme="velvet"] .from-orange-500 {
-  --tw-gradient-from: #b80035 !important;
+  --tw-gradient-from: #be123c !important;
 }
 [data-theme="velvet"] .from-orange-400 {
   --tw-gradient-from: #e11d48 !important;
 }
 [data-theme="velvet"] .via-orange-500,
 [data-theme="velvet"] .via-orange-400 {
-  --tw-gradient-via: #b80035 !important;
+  --tw-gradient-via: #db2777 !important;
 }
 [data-theme="velvet"] .to-pink-500 {
-  --tw-gradient-to: #e11d48 !important;
+  --tw-gradient-to: #ec4899 !important;
 }
 
 /* Brand gradient button */
 [data-theme="velvet"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+  background-image: linear-gradient(to right, #be123c, #db2777, #ec4899) !important;
 }
 [data-theme="velvet"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+  background-image: linear-gradient(to right, #be123c, #ec4899) !important;
 }
 
 /* Brand gradient text (logo, headlines) — MUST use background-image */
 [data-theme="velvet"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+  background-image: linear-gradient(to right, #be123c, #db2777, #ec4899) !important;
 }
 [data-theme="velvet"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+  background-image: linear-gradient(to right, #be123c, #ec4899) !important;
 }
 
 /* ── Orange text accents → rose ── */
@@ -723,31 +723,31 @@ button:focus {
 
 /* ── Peer-checked toggle ── */
 [data-theme="velvet"] .peer-checked\:bg-gradient-to-r {
-  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+  background-image: linear-gradient(to right, #be123c, #ec4899) !important;
 }
 
 /* ── Pro Access card gradient ── */
 [data-theme="velvet"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
-  background-image: linear-gradient(to bottom right, rgba(184, 0, 53, 0.08), rgba(225, 29, 72, 0.08)) !important;
+  background-image: linear-gradient(to bottom right, rgba(190, 18, 60, 0.08), rgba(236, 72, 153, 0.08)) !important;
 }
 
 /* ── Credit pack best deal border ── */
 [data-theme="velvet"] .border-2.border-orange-500\/60 {
-  border-color: rgba(184, 0, 53, 0.6) !important;
+  border-color: rgba(190, 18, 60, 0.6) !important;
 }
 [data-theme="velvet"] .from-orange-500\/10 {
-  --tw-gradient-from: rgba(184, 0, 53, 0.1) !important;
+  --tw-gradient-from: rgba(190, 18, 60, 0.1) !important;
 }
 [data-theme="velvet"] .to-pink-500\/10 {
-  --tw-gradient-to: rgba(225, 29, 72, 0.1) !important;
+  --tw-gradient-to: rgba(236, 72, 153, 0.1) !important;
 }
 
 /* ── Hover gradient overrides ── */
 [data-theme="velvet"] .hover\:from-orange-500\/20:hover {
-  --tw-gradient-from: rgba(184, 0, 53, 0.2) !important;
+  --tw-gradient-from: rgba(190, 18, 60, 0.2) !important;
 }
 [data-theme="velvet"] .hover\:to-pink-500\/20:hover {
-  --tw-gradient-to: rgba(225, 29, 72, 0.2) !important;
+  --tw-gradient-to: rgba(236, 72, 153, 0.2) !important;
 }
 
 /* ── Group hover ── */
@@ -780,130 +780,130 @@ button:focus {
 
 /* ═══════════════════════════════════════════════════════
    KINETIC EMERALD THEME — Accent Overrides
-   Primary: #006c49  Light: #10b981
+   Gradient: deep emerald #059669 → teal/cyan #06b6d4
    ═══════════════════════════════════════════════════════ */
 
-/* ── Gradient overrides: orange→pink becomes emerald ── */
+/* ── Gradient overrides: orange→pink becomes emerald→cyan ── */
 [data-theme="kinetic"] .from-orange-500 {
-  --tw-gradient-from: #006c49 !important;
+  --tw-gradient-from: #059669 !important;
 }
 [data-theme="kinetic"] .from-orange-400 {
   --tw-gradient-from: #10b981 !important;
 }
 [data-theme="kinetic"] .via-orange-500,
 [data-theme="kinetic"] .via-orange-400 {
-  --tw-gradient-via: #006c49 !important;
+  --tw-gradient-via: #14b8a6 !important;
 }
 [data-theme="kinetic"] .to-pink-500 {
-  --tw-gradient-to: #10b981 !important;
+  --tw-gradient-to: #06b6d4 !important;
 }
 
 /* Brand gradient button */
 [data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+  background-image: linear-gradient(to right, #059669, #14b8a6, #06b6d4) !important;
 }
 [data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+  background-image: linear-gradient(to right, #059669, #06b6d4) !important;
 }
 
 /* Brand gradient text — MUST use background-image */
 [data-theme="kinetic"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+  background-image: linear-gradient(to right, #059669, #14b8a6, #06b6d4) !important;
 }
 [data-theme="kinetic"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+  background-image: linear-gradient(to right, #059669, #06b6d4) !important;
 }
 
 /* ── Orange text accents → emerald ── */
 [data-theme="kinetic"] .text-orange-400 {
-  color: #006c49 !important;
+  color: #059669 !important;
 }
 [data-theme="kinetic"] .text-orange-500 {
-  color: #006c49 !important;
+  color: #059669 !important;
 }
 [data-theme="kinetic"] .text-orange-200 {
-  color: #006c49 !important;
+  color: #059669 !important;
 }
 
 /* ── Orange bg accents → emerald ── */
 [data-theme="kinetic"] .bg-orange-500 {
-  background-color: #006c49 !important;
+  background-color: #059669 !important;
 }
 [data-theme="kinetic"] .bg-orange-900\/20 {
-  background-color: rgba(0, 108, 73, 0.1) !important;
+  background-color: rgba(5, 150, 105, 0.1) !important;
 }
 [data-theme="kinetic"] .bg-orange-500\/20 {
-  background-color: rgba(0, 108, 73, 0.15) !important;
+  background-color: rgba(5, 150, 105, 0.15) !important;
 }
 
 /* ── Orange border accents → emerald ── */
 [data-theme="kinetic"] .border-orange-500 {
-  border-color: #006c49 !important;
+  border-color: #059669 !important;
 }
 [data-theme="kinetic"] .border-orange-700\/50 {
-  border-color: rgba(0, 108, 73, 0.3) !important;
+  border-color: rgba(5, 150, 105, 0.3) !important;
 }
 [data-theme="kinetic"] .border-orange-500\/30 {
-  border-color: rgba(0, 108, 73, 0.3) !important;
+  border-color: rgba(5, 150, 105, 0.3) !important;
 }
 
 /* ── Focus ring ── */
 [data-theme="kinetic"] .focus\:border-orange-500:focus {
-  border-color: #006c49 !important;
+  border-color: #059669 !important;
 }
 [data-theme="kinetic"] .focus\:ring-orange-500\/20:focus {
-  --tw-ring-color: rgba(0, 108, 73, 0.2) !important;
+  --tw-ring-color: rgba(5, 150, 105, 0.2) !important;
 }
 [data-theme="kinetic"] .focus\:ring-orange-500:focus {
-  --tw-ring-color: #006c49 !important;
+  --tw-ring-color: #059669 !important;
 }
 
 /* ── Hover borders ── */
 [data-theme="kinetic"] .hover\:border-orange-500:hover {
-  border-color: #006c49 !important;
+  border-color: #059669 !important;
 }
 [data-theme="kinetic"] .hover\:border-orange-500\/50:hover {
-  border-color: rgba(0, 108, 73, 0.5) !important;
+  border-color: rgba(5, 150, 105, 0.5) !important;
 }
 
 /* ── Peer-checked toggle ── */
 [data-theme="kinetic"] .peer-checked\:bg-gradient-to-r {
-  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+  background-image: linear-gradient(to right, #059669, #06b6d4) !important;
 }
 
 /* ── Pro Access card gradient ── */
 [data-theme="kinetic"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
-  background-image: linear-gradient(to bottom right, rgba(0, 108, 73, 0.08), rgba(16, 185, 129, 0.08)) !important;
+  background-image: linear-gradient(to bottom right, rgba(5, 150, 105, 0.08), rgba(6, 182, 212, 0.08)) !important;
 }
 
 /* ── Credit pack best deal border ── */
 [data-theme="kinetic"] .border-2.border-orange-500\/60 {
-  border-color: rgba(0, 108, 73, 0.6) !important;
+  border-color: rgba(5, 150, 105, 0.6) !important;
 }
 [data-theme="kinetic"] .from-orange-500\/10 {
-  --tw-gradient-from: rgba(0, 108, 73, 0.1) !important;
+  --tw-gradient-from: rgba(5, 150, 105, 0.1) !important;
 }
 [data-theme="kinetic"] .to-pink-500\/10 {
-  --tw-gradient-to: rgba(16, 185, 129, 0.1) !important;
+  --tw-gradient-to: rgba(6, 182, 212, 0.1) !important;
 }
 
 /* ── Hover gradient overrides ── */
 [data-theme="kinetic"] .hover\:from-orange-500\/20:hover {
-  --tw-gradient-from: rgba(0, 108, 73, 0.2) !important;
+  --tw-gradient-from: rgba(5, 150, 105, 0.2) !important;
 }
 [data-theme="kinetic"] .hover\:to-pink-500\/20:hover {
-  --tw-gradient-to: rgba(16, 185, 129, 0.2) !important;
+  --tw-gradient-to: rgba(6, 182, 212, 0.2) !important;
 }
 
 /* ── Group hover ── */
 [data-theme="kinetic"] .group-hover\:text-orange-400 {
-  color: #006c49 !important;
+  color: #059669 !important;
 }
 
 /* ── Badge text ── */
 [data-theme="kinetic"] .text-\[10px\].font-bold.bg-orange-500\/20.text-orange-400 {
-  color: #006c49 !important;
-  background-color: rgba(0, 108, 73, 0.1) !important;
+  color: #059669 !important;
+  background-color: rgba(5, 150, 105, 0.1) !important;
 }
 
 /* ── Keep white text on gradient buttons ── */
@@ -925,130 +925,130 @@ button:focus {
 
 /* ═══════════════════════════════════════════════════════
    INDIGO NIGHT THEME — Accent Overrides
-   Primary: #3525cd  Light: #4f46e5
+   Gradient: violet #7c3aed → sky blue #3b82f6
    ═══════════════════════════════════════════════════════ */
 
-/* ── Gradient overrides: orange→pink becomes indigo ── */
+/* ── Gradient overrides: orange→pink becomes violet→blue ── */
 [data-theme="indigo"] .from-orange-500 {
-  --tw-gradient-from: #3525cd !important;
+  --tw-gradient-from: #7c3aed !important;
 }
 [data-theme="indigo"] .from-orange-400 {
-  --tw-gradient-from: #4f46e5 !important;
+  --tw-gradient-from: #6366f1 !important;
 }
 [data-theme="indigo"] .via-orange-500,
 [data-theme="indigo"] .via-orange-400 {
-  --tw-gradient-via: #3525cd !important;
+  --tw-gradient-via: #6366f1 !important;
 }
 [data-theme="indigo"] .to-pink-500 {
-  --tw-gradient-to: #4f46e5 !important;
+  --tw-gradient-to: #3b82f6 !important;
 }
 
 /* Brand gradient button */
 [data-theme="indigo"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+  background-image: linear-gradient(to right, #7c3aed, #6366f1, #3b82f6) !important;
 }
 [data-theme="indigo"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+  background-image: linear-gradient(to right, #7c3aed, #3b82f6) !important;
 }
 
 /* Brand gradient text — MUST use background-image */
 [data-theme="indigo"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+  background-image: linear-gradient(to right, #7c3aed, #6366f1, #3b82f6) !important;
 }
 [data-theme="indigo"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+  background-image: linear-gradient(to right, #7c3aed, #3b82f6) !important;
 }
 
-/* ── Orange text accents → indigo ── */
+/* ── Orange text accents → violet ── */
 [data-theme="indigo"] .text-orange-400 {
-  color: #3525cd !important;
+  color: #7c3aed !important;
 }
 [data-theme="indigo"] .text-orange-500 {
-  color: #3525cd !important;
+  color: #7c3aed !important;
 }
 [data-theme="indigo"] .text-orange-200 {
-  color: #3525cd !important;
+  color: #6366f1 !important;
 }
 
-/* ── Orange bg accents → indigo ── */
+/* ── Orange bg accents → violet ── */
 [data-theme="indigo"] .bg-orange-500 {
-  background-color: #3525cd !important;
+  background-color: #7c3aed !important;
 }
 [data-theme="indigo"] .bg-orange-900\/20 {
-  background-color: rgba(53, 37, 205, 0.1) !important;
+  background-color: rgba(124, 58, 237, 0.1) !important;
 }
 [data-theme="indigo"] .bg-orange-500\/20 {
-  background-color: rgba(53, 37, 205, 0.15) !important;
+  background-color: rgba(124, 58, 237, 0.15) !important;
 }
 
-/* ── Orange border accents → indigo ── */
+/* ── Orange border accents → violet ── */
 [data-theme="indigo"] .border-orange-500 {
-  border-color: #3525cd !important;
+  border-color: #7c3aed !important;
 }
 [data-theme="indigo"] .border-orange-700\/50 {
-  border-color: rgba(53, 37, 205, 0.3) !important;
+  border-color: rgba(124, 58, 237, 0.3) !important;
 }
 [data-theme="indigo"] .border-orange-500\/30 {
-  border-color: rgba(53, 37, 205, 0.3) !important;
+  border-color: rgba(124, 58, 237, 0.3) !important;
 }
 
 /* ── Focus ring ── */
 [data-theme="indigo"] .focus\:border-orange-500:focus {
-  border-color: #3525cd !important;
+  border-color: #7c3aed !important;
 }
 [data-theme="indigo"] .focus\:ring-orange-500\/20:focus {
-  --tw-ring-color: rgba(53, 37, 205, 0.2) !important;
+  --tw-ring-color: rgba(124, 58, 237, 0.2) !important;
 }
 [data-theme="indigo"] .focus\:ring-orange-500:focus {
-  --tw-ring-color: #3525cd !important;
+  --tw-ring-color: #7c3aed !important;
 }
 
 /* ── Hover borders ── */
 [data-theme="indigo"] .hover\:border-orange-500:hover {
-  border-color: #3525cd !important;
+  border-color: #7c3aed !important;
 }
 [data-theme="indigo"] .hover\:border-orange-500\/50:hover {
-  border-color: rgba(53, 37, 205, 0.5) !important;
+  border-color: rgba(124, 58, 237, 0.5) !important;
 }
 
 /* ── Peer-checked toggle ── */
 [data-theme="indigo"] .peer-checked\:bg-gradient-to-r {
-  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+  background-image: linear-gradient(to right, #7c3aed, #3b82f6) !important;
 }
 
 /* ── Pro Access card gradient ── */
 [data-theme="indigo"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
-  background-image: linear-gradient(to bottom right, rgba(53, 37, 205, 0.08), rgba(79, 70, 229, 0.08)) !important;
+  background-image: linear-gradient(to bottom right, rgba(124, 58, 237, 0.08), rgba(59, 130, 246, 0.08)) !important;
 }
 
 /* ── Credit pack best deal border ── */
 [data-theme="indigo"] .border-2.border-orange-500\/60 {
-  border-color: rgba(53, 37, 205, 0.6) !important;
+  border-color: rgba(124, 58, 237, 0.6) !important;
 }
 [data-theme="indigo"] .from-orange-500\/10 {
-  --tw-gradient-from: rgba(53, 37, 205, 0.1) !important;
+  --tw-gradient-from: rgba(124, 58, 237, 0.1) !important;
 }
 [data-theme="indigo"] .to-pink-500\/10 {
-  --tw-gradient-to: rgba(79, 70, 229, 0.1) !important;
+  --tw-gradient-to: rgba(59, 130, 246, 0.1) !important;
 }
 
 /* ── Hover gradient overrides ── */
 [data-theme="indigo"] .hover\:from-orange-500\/20:hover {
-  --tw-gradient-from: rgba(53, 37, 205, 0.2) !important;
+  --tw-gradient-from: rgba(124, 58, 237, 0.2) !important;
 }
 [data-theme="indigo"] .hover\:to-pink-500\/20:hover {
-  --tw-gradient-to: rgba(79, 70, 229, 0.2) !important;
+  --tw-gradient-to: rgba(59, 130, 246, 0.2) !important;
 }
 
 /* ── Group hover ── */
 [data-theme="indigo"] .group-hover\:text-orange-400 {
-  color: #3525cd !important;
+  color: #7c3aed !important;
 }
 
 /* ── Badge text ── */
 [data-theme="indigo"] .text-\[10px\].font-bold.bg-orange-500\/20.text-orange-400 {
-  color: #3525cd !important;
-  background-color: rgba(53, 37, 205, 0.1) !important;
+  color: #7c3aed !important;
+  background-color: rgba(124, 58, 237, 0.1) !important;
 }
 
 /* ── Keep white text on gradient buttons ── */
@@ -1155,35 +1155,35 @@ button:focus {
   border-color: #1a1a1d !important;
 }
 
-/* ── Gradient overrides: orange→pink becomes white→silver ── */
+/* ── Gradient overrides: orange→pink becomes white→slate-blue metallic ── */
 [data-theme="monolith"] .from-orange-500 {
   --tw-gradient-from: #ffffff !important;
 }
 [data-theme="monolith"] .from-orange-400 {
-  --tw-gradient-from: #d4d4d8 !important;
+  --tw-gradient-from: #e2e8f0 !important;
 }
 [data-theme="monolith"] .via-orange-500,
 [data-theme="monolith"] .via-orange-400 {
-  --tw-gradient-via: #a1a1aa !important;
+  --tw-gradient-via: #cbd5e1 !important;
 }
 [data-theme="monolith"] .to-pink-500 {
-  --tw-gradient-to: #d4d4d8 !important;
+  --tw-gradient-to: #94a3b8 !important;
 }
 
-/* Brand gradient button — white metallic */
+/* Brand gradient button — white-to-slate metallic */
 [data-theme="monolith"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+  background-image: linear-gradient(to right, #ffffff, #cbd5e1, #94a3b8) !important;
 }
 [data-theme="monolith"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+  background-image: linear-gradient(to right, #ffffff, #94a3b8) !important;
 }
 
 /* Brand gradient text — MUST use background-image */
 [data-theme="monolith"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
-  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+  background-image: linear-gradient(to right, #ffffff, #cbd5e1, #94a3b8) !important;
 }
 [data-theme="monolith"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
-  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+  background-image: linear-gradient(to right, #ffffff, #94a3b8) !important;
 }
 
 /* ── Make transparent text clip still work ── */
@@ -1254,7 +1254,7 @@ button:focus {
 
 /* ── Peer-checked toggle ── */
 [data-theme="monolith"] .peer-checked\:bg-gradient-to-r {
-  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+  background-image: linear-gradient(to right, #ffffff, #94a3b8) !important;
 }
 
 /* ── Nav bar ── */
