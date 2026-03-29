@@ -458,7 +458,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <div className="relative overflow-hidden px-4 py-20 sm:py-32">
+      <div className="relative overflow-hidden px-4 pt-20 pb-8 sm:pt-32 sm:pb-12">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-6 leading-tight">
             <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-pink-500 bg-clip-text text-transparent">
@@ -475,7 +475,7 @@ export default function Home() {
           </p>
 
           {/* Demo Video */}
-          <div className="mx-auto max-w-3xl mb-4">
+          <div className="mx-auto max-w-3xl">
             <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
               <iframe
                 src="https://www.tella.tv/video/create-presentation-slides-with-ai-in-seconds-9lb9/embed?b=0&title=0&a=1&loop=0&autoPlay=false&t=0&muted=0&wt=0"
@@ -490,7 +490,7 @@ export default function Home() {
       </div>
 
       {/* Generator Section */}
-      <div className="mx-auto max-w-2xl px-4 py-16">
+      <div className="mx-auto max-w-2xl px-4 py-8">
         {/* Textarea with Mic Button */}
         <div className="mb-8 relative">
           <textarea
