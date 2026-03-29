@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [loadingPresentations, setLoadingPresentations] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [showPresentations, setShowPresentations] = useState(false);
+  const [showGenerations, setShowGenerations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -523,92 +524,114 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Recent Generations */}
+        {/* Recent Generations — Collapsible */}
         <div className="rounded-lg bg-gray-900 border border-gray-800">
-          <div className="p-6 border-b border-gray-800">
-            <h2 className="text-xl font-semibold text-white">Recent Generations</h2>
-          </div>
-
-          {generations.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="inline-block p-4 bg-gray-800 rounded-full mb-4">
-                <svg
-                  className="w-8 h-8 text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m0 0h6m0-6v6"
-                  />
-                </svg>
+          <button
+            onClick={() => setShowGenerations(!showGenerations)}
+            className="w-full p-6 flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <div>
+                <span className="text-white font-semibold text-xl flex items-center gap-2">
+                  Recent Generations
+                  {generations.length > 0 && (
+                    <span className="text-xs font-medium bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">
+                      {generations.length}
+                    </span>
+                  )}
+                </span>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Your recent AI-generated presentation history.
+                </p>
               </div>
-              <h3 className="text-lg font-medium text-white mb-2">
-                No presentations yet
-              </h3>
-              <p className="text-gray-400 mb-6">
-                Create your first AI-generated presentation deck to get started!
-              </p>
-              <Link
-                href="/"
-                className="inline-block px-6 py-3 text-white bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-lg font-medium transition"
-              >
-                Create Your First Deck
-              </Link>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-gray-800 bg-gray-800/50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                      Prompt
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                      Slides
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                      Credits Used
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {generations.map((generation) => (
-                    <tr
-                      key={generation.id}
-                      className="hover:bg-gray-800/50 transition"
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${showGenerations ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showGenerations && (
+            <>
+              {generations.length === 0 ? (
+                <div className="px-6 pb-6 border-t border-gray-800 pt-6">
+                  <div className="text-center">
+                    <div className="inline-block p-4 bg-gray-800 rounded-full mb-4">
+                      <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m0 0h6m0-6v6" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-white mb-2">
+                      No presentations yet
+                    </h3>
+                    <p className="text-gray-400 mb-6">
+                      Create your first AI-generated presentation deck to get started!
+                    </p>
+                    <Link
+                      href="/"
+                      className="inline-block px-6 py-3 text-white bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-lg font-medium transition"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-300">
-                          {formatDate(generation.created_at)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-300">
-                          {truncatePrompt(generation.prompt)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-300">
-                          {generation.slide_count || '-'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400">
-                          {generation.credits_used}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      Create Your First Deck
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border-t border-gray-800">
+                  <table className="w-full">
+                    <thead className="border-b border-gray-800 bg-gray-800/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Prompt
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Slides
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          Credits Used
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {generations.map((generation) => (
+                        <tr
+                          key={generation.id}
+                          className="hover:bg-gray-800/50 transition"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-gray-300">
+                              {formatDate(generation.created_at)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-300">
+                              {truncatePrompt(generation.prompt)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-gray-300">
+                              {generation.slide_count || '-'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400">
+                              {generation.credits_used}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
