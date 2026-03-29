@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [savedPresentations, setSavedPresentations] = useState<AideckSavedPresentation[]>([]);
   const [loadingPresentations, setLoadingPresentations] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [showPresentations, setShowPresentations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,7 +89,11 @@ export default function DashboardPage() {
         const res = await fetch('/api/presentations');
         if (res.ok) {
           const data = await res.json();
-          setSavedPresentations(data.presentations || []);
+          const now = new Date();
+          const valid = (data.presentations || []).filter(
+            (p: AideckSavedPresentation) => new Date(p.expires_at) > now
+          );
+          setSavedPresentations(valid);
         }
       } catch (err) {
         console.error('Error fetching saved presentations:', err);
@@ -393,106 +398,128 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* My Saved Presentations (Cloud Storage) */}
+        {/* My Saved Presentations (Cloud Storage) — Collapsible */}
         <div className="mb-8 rounded-lg bg-gray-900 border border-gray-800">
-          <div className="p-6 border-b border-gray-800">
-            <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowPresentations(!showPresentations)}
+            className="w-full p-6 flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+              </svg>
               <div>
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                  </svg>
+                <span className="text-white font-semibold text-xl flex items-center gap-2">
                   My Presentations
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Your presentations are saved in the cloud for 25 days. Download them anytime!
+                  {!loadingPresentations && savedPresentations.length > 0 && (
+                    <span className="text-xs font-medium bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">
+                      {savedPresentations.length}
+                    </span>
+                  )}
+                </span>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Saved in the cloud for 25 days. Download them anytime!
                 </p>
               </div>
             </div>
-          </div>
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${showPresentations ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-          {loadingPresentations ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500 mx-auto mb-3"></div>
-              <p className="text-gray-400 text-sm">Loading your presentations...</p>
-            </div>
-          ) : savedPresentations.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="inline-block p-4 bg-gray-800 rounded-full mb-4">
-                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-white mb-2">No saved presentations yet</h3>
-              <p className="text-gray-400 mb-6">
-                When you generate a new presentation, it will be automatically saved here for 25 days.
-              </p>
-              <Link
-                href="/"
-                className="inline-block px-6 py-3 text-white bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-lg font-medium transition"
-              >
-                Create a Presentation
-              </Link>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-800">
-              {savedPresentations.map((pres) => {
-                const days = daysUntilExpiry(pres.expires_at);
-                const isExpiringSoon = days <= 3;
+          {showPresentations && (
+            <>
+              {loadingPresentations ? (
+                <div className="px-6 pb-6">
+                  <div className="p-8 text-center border-t border-gray-800">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500 mx-auto mb-3"></div>
+                    <p className="text-gray-400 text-sm">Loading your presentations...</p>
+                  </div>
+                </div>
+              ) : savedPresentations.length === 0 ? (
+                <div className="px-6 pb-6 border-t border-gray-800 pt-6">
+                  <div className="text-center">
+                    <div className="inline-block p-4 bg-gray-800 rounded-full mb-4">
+                      <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-white mb-2">No saved presentations yet</h3>
+                    <p className="text-gray-400 mb-6">
+                      When you generate a new presentation, it will be automatically saved here for 25 days.
+                    </p>
+                    <Link
+                      href="/"
+                      className="inline-block px-6 py-3 text-white bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-lg font-medium transition"
+                    >
+                      Create a Presentation
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-800 border-t border-gray-800">
+                  {savedPresentations.map((pres) => {
+                    const days = daysUntilExpiry(pres.expires_at);
+                    const isExpiringSoon = days <= 3;
 
-                return (
-                  <div key={pres.id} className="p-5 hover:bg-gray-800/50 transition">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate">{pres.title}</h3>
-                        {pres.description && (
-                          <p className="text-sm text-gray-400 mt-1 line-clamp-2">{pres.description}</p>
-                        )}
-                        <div className="flex flex-wrap items-center gap-3 mt-2">
-                          <span className="text-xs text-gray-500">
-                            {formatDate(pres.created_at)}
-                          </span>
-                          {pres.slide_count && (
-                            <span className="text-xs text-gray-500">
-                              {pres.slide_count} slides
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-500">
-                            {formatFileSize(pres.file_size)}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            isExpiringSoon
-                              ? 'bg-red-500/20 text-red-400'
-                              : 'bg-gray-700 text-gray-400'
-                          }`}>
-                            {days === 0 ? 'Expires today' : `${days} day${days !== 1 ? 's' : ''} left`}
-                          </span>
+                    return (
+                      <div key={pres.id} className="p-5 hover:bg-gray-800/50 transition">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-white font-medium truncate">{pres.title}</h3>
+                            {pres.description && (
+                              <p className="text-sm text-gray-400 mt-1 line-clamp-2">{pres.description}</p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-3 mt-2">
+                              <span className="text-xs text-gray-500">
+                                {formatDate(pres.created_at)}
+                              </span>
+                              {pres.slide_count && (
+                                <span className="text-xs text-gray-500">
+                                  {pres.slide_count} slides
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500">
+                                {formatFileSize(pres.file_size)}
+                              </span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                isExpiringSoon
+                                  ? 'bg-red-500/20 text-red-400'
+                                  : 'bg-gray-700 text-gray-400'
+                              }`}>
+                                {days === 0 ? 'Expires today' : `${days} day${days !== 1 ? 's' : ''} left`}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDownloadPresentation(pres.id, pres.filename); }}
+                            disabled={downloadingId === pres.id}
+                            className="shrink-0 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {downloadingId === pres.id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                                <span>Loading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>Download</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDownloadPresentation(pres.id, pres.filename)}
-                        disabled={downloadingId === pres.id}
-                        className="shrink-0 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        {downloadingId === pres.id ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                            <span>Loading...</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            <span>Download</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
 
