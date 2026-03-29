@@ -7,18 +7,48 @@ import { createClient } from '@/lib/supabase/client';
 import { AideckProfile } from '@/lib/supabase/types';
 import { useTheme, ThemeName } from '@/lib/theme-provider';
 
-const THEME_OPTIONS: { id: ThemeName; label: string; description: string; preview: string }[] = [
+const THEME_OPTIONS: { id: ThemeName; label: string; description: string; previewBg: string; previewBorder: string }[] = [
   {
     id: 'dark',
     label: 'Dark Mode (Default)',
     description: 'Dark background, orange-pink gradients, glow effects. Current production theme.',
-    preview: 'bg-gray-950 border-orange-500',
+    previewBg: '#030712',
+    previewBorder: '#f97316',
   },
   {
     id: 'deckai',
     label: 'DeckAI Light',
     description: 'Clean white background, blue primary, burnt-orange accent. Professional & editorial.',
-    preview: 'bg-white border-blue-600',
+    previewBg: '#ffffff',
+    previewBorder: '#003ec7',
+  },
+  {
+    id: 'velvet',
+    label: 'Velvet Rose',
+    description: 'Warm light background with rich rose-red accents. Elegant & premium feel.',
+    previewBg: '#fff5f5',
+    previewBorder: '#b80035',
+  },
+  {
+    id: 'kinetic',
+    label: 'Kinetic Emerald',
+    description: 'Light background with vibrant emerald-green accents. Fresh & energetic.',
+    previewBg: '#f0fdf4',
+    previewBorder: '#006c49',
+  },
+  {
+    id: 'indigo',
+    label: 'Indigo Night',
+    description: 'Light background with deep indigo-purple accents. Sophisticated & bold.',
+    previewBg: '#eef2ff',
+    previewBorder: '#3525cd',
+  },
+  {
+    id: 'monolith',
+    label: 'Monolith',
+    description: 'Ultra-dark background with white metallic accents. Minimal & cinematic.',
+    previewBg: '#131315',
+    previewBorder: '#ffffff',
   },
 ];
 
@@ -131,7 +161,8 @@ export default function AdminPage() {
 
       // Update the live theme immediately
       setTheme(newTheme);
-      setThemeMessage(`Theme switched to "${newTheme === 'dark' ? 'Dark Mode' : 'DeckAI Light'}" — all visitors will see this now.`);
+      const label = THEME_OPTIONS.find((o) => o.id === newTheme)?.label || newTheme;
+      setThemeMessage(`Theme switched to "${label}" — all visitors will see this now.`);
     } catch (err) {
       setThemeMessage(
         err instanceof Error
@@ -310,7 +341,7 @@ export default function AdminPage() {
             Switch the theme for ALL visitors. Changes take effect immediately — great for split testing different looks.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             {THEME_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
@@ -332,11 +363,8 @@ export default function AdminPage() {
                 {/* Preview strip */}
                 <div className="flex items-center gap-3 mb-3">
                   <div
-                    className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center ${
-                      opt.id === 'dark'
-                        ? 'bg-gray-950 border-orange-500'
-                        : 'bg-white border-blue-600'
-                    }`}
+                    className="w-10 h-10 rounded-lg border-2 flex items-center justify-center"
+                    style={{ backgroundColor: opt.previewBg, borderColor: opt.previewBorder }}
                   >
                     {currentTheme === opt.id && (
                       <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">

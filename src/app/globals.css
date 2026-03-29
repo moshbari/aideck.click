@@ -433,3 +433,934 @@ button:focus {
 [data-theme="deckai"] .bg-gray-950 {
   background-color: #f9f9f9 !important;
 }
+
+
+/* ═══════════════════════════════════════════════════════
+   SHARED LIGHT THEME BASE — Velvet, Kinetic, Indigo
+   These three themes share the same structural overrides
+   as DeckAI (light background, dark text) but use
+   different accent colors defined per-theme below.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Body & Base ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) body {
+  background-color: #f9f9f9 !important;
+  color: #1a1c1c !important;
+}
+
+/* ── Scrollbar ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) ::-webkit-scrollbar-track {
+  background: #f3f3f4 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) ::-webkit-scrollbar-thumb {
+  background: #c3c5d9 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) ::-webkit-scrollbar-thumb:hover {
+  background: #a0a3b5 !important;
+}
+
+/* ── Selection ── */
+[data-theme="velvet"] ::selection {
+  background: rgba(184, 0, 53, 0.2) !important;
+  color: #1a1c1c !important;
+}
+[data-theme="kinetic"] ::selection {
+  background: rgba(0, 108, 73, 0.2) !important;
+  color: #1a1c1c !important;
+}
+[data-theme="indigo"] ::selection {
+  background: rgba(53, 37, 205, 0.2) !important;
+  color: #1a1c1c !important;
+}
+
+/* ── Page backgrounds ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-950 {
+  background-color: #f9f9f9 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-black {
+  background-color: #f9f9f9 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-900 {
+  background-color: #ffffff !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-800 {
+  background-color: #eeeeee !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-950\/50,
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-900\/50 {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* ── Card shadows ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-900.rounded-2xl,
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-900.rounded-xl,
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-900.rounded-lg {
+  box-shadow: 0 4px 24px -4px rgba(26, 28, 28, 0.06) !important;
+}
+
+/* ── Text colors ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .text-white {
+  color: #1a1c1c !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .text-gray-200 {
+  color: #434656 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .text-gray-300 {
+  color: #434656 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .text-gray-400 {
+  color: #565e74 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .text-gray-500 {
+  color: #737688 !important;
+}
+
+/* ── Placeholder ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .placeholder-gray-500::placeholder {
+  color: #737688 !important;
+}
+
+/* ── Border colors ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .border-gray-700 {
+  border-color: #c3c5d9 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .border-gray-800 {
+  border-color: #e2e2e2 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .border-gray-900 {
+  border-color: #e2e2e2 !important;
+}
+
+/* ── Nav bar ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) nav.border-b.border-gray-900,
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) nav.flex.items-center.justify-between {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-color: #e2e2e2 !important;
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ── Input / textarea fields ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-900.border.border-gray-800.rounded-2xl,
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-900.border.border-gray-800.rounded-lg,
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) textarea.bg-gray-900,
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) input.bg-gray-900 {
+  background-color: #eeeeee !important;
+  border-color: #c3c5d9 !important;
+  color: #1a1c1c !important;
+}
+
+/* ── Red/green status badges (keep as-is) ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-green-500\/20 {
+  background-color: rgba(34, 197, 94, 0.15) !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-red-500\/20 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .text-green-400 {
+  color: #16a34a !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .text-red-400 {
+  color: #dc2626 !important;
+}
+
+/* ── Red button (recording mic) — keep red ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-red-500 {
+  background-color: #dc2626 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .hover\:bg-red-600:hover {
+  background-color: #b91c1c !important;
+}
+
+/* ── Hover states ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .hover\:bg-gray-800:hover {
+  background-color: #e8e8e8 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .hover\:bg-gray-700:hover {
+  background-color: #dadada !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .hover\:text-white:hover {
+  color: #1a1c1c !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .hover\:border-gray-700:hover {
+  border-color: #c3c5d9 !important;
+}
+
+/* ── Tables (admin) ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e2e2 !important;
+}
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .hover\:bg-gray-950:hover {
+  background-color: #f3f3f4 !important;
+}
+
+/* ── Footer ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) footer.border-t.border-gray-900 {
+  border-color: #e2e2e2 !important;
+  background-color: #f3f3f4 !important;
+}
+
+/* ── Loading state ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-800\/40 {
+  background-color: rgba(238, 238, 238, 0.6) !important;
+}
+
+/* ── Font-semibold labels ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .font-semibold.text-gray-300 {
+  color: #1a1c1c !important;
+}
+
+/* ── Line-through prices ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .line-through {
+  color: #737688 !important;
+}
+
+/* ── bg-gray-800 buttons ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-gray-800.border.border-gray-700 {
+  background-color: #e8e8e8 !important;
+  border-color: #c3c5d9 !important;
+}
+
+/* ── Make transparent text clip still work ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .bg-clip-text.text-transparent {
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ── Admin ring ── */
+:is([data-theme="velvet"], [data-theme="kinetic"], [data-theme="indigo"]) .ring-2.ring-blue-500 {
+  --tw-ring-color: #003ec7 !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   VELVET ROSE THEME — Accent Overrides
+   Primary: #b80035  Light: #e11d48
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Gradient overrides: orange→pink becomes rose ── */
+[data-theme="velvet"] .from-orange-500 {
+  --tw-gradient-from: #b80035 !important;
+}
+[data-theme="velvet"] .from-orange-400 {
+  --tw-gradient-from: #e11d48 !important;
+}
+[data-theme="velvet"] .via-orange-500,
+[data-theme="velvet"] .via-orange-400 {
+  --tw-gradient-via: #b80035 !important;
+}
+[data-theme="velvet"] .to-pink-500 {
+  --tw-gradient-to: #e11d48 !important;
+}
+
+/* Brand gradient button */
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+}
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+}
+
+/* Brand gradient text (logo, headlines) — MUST use background-image */
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+}
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+}
+
+/* ── Orange text accents → rose ── */
+[data-theme="velvet"] .text-orange-400 {
+  color: #b80035 !important;
+}
+[data-theme="velvet"] .text-orange-500 {
+  color: #b80035 !important;
+}
+[data-theme="velvet"] .text-orange-200 {
+  color: #b80035 !important;
+}
+
+/* ── Orange bg accents → rose ── */
+[data-theme="velvet"] .bg-orange-500 {
+  background-color: #b80035 !important;
+}
+[data-theme="velvet"] .bg-orange-900\/20 {
+  background-color: rgba(184, 0, 53, 0.1) !important;
+}
+[data-theme="velvet"] .bg-orange-500\/20 {
+  background-color: rgba(184, 0, 53, 0.15) !important;
+}
+
+/* ── Orange border accents → rose ── */
+[data-theme="velvet"] .border-orange-500 {
+  border-color: #b80035 !important;
+}
+[data-theme="velvet"] .border-orange-700\/50 {
+  border-color: rgba(184, 0, 53, 0.3) !important;
+}
+[data-theme="velvet"] .border-orange-500\/30 {
+  border-color: rgba(184, 0, 53, 0.3) !important;
+}
+
+/* ── Focus ring ── */
+[data-theme="velvet"] .focus\:border-orange-500:focus {
+  border-color: #b80035 !important;
+}
+[data-theme="velvet"] .focus\:ring-orange-500\/20:focus {
+  --tw-ring-color: rgba(184, 0, 53, 0.2) !important;
+}
+[data-theme="velvet"] .focus\:ring-orange-500:focus {
+  --tw-ring-color: #b80035 !important;
+}
+
+/* ── Hover borders ── */
+[data-theme="velvet"] .hover\:border-orange-500:hover {
+  border-color: #b80035 !important;
+}
+[data-theme="velvet"] .hover\:border-orange-500\/50:hover {
+  border-color: rgba(184, 0, 53, 0.5) !important;
+}
+
+/* ── Peer-checked toggle ── */
+[data-theme="velvet"] .peer-checked\:bg-gradient-to-r {
+  background-image: linear-gradient(to right, #b80035, #e11d48) !important;
+}
+
+/* ── Pro Access card gradient ── */
+[data-theme="velvet"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
+  background-image: linear-gradient(to bottom right, rgba(184, 0, 53, 0.08), rgba(225, 29, 72, 0.08)) !important;
+}
+
+/* ── Credit pack best deal border ── */
+[data-theme="velvet"] .border-2.border-orange-500\/60 {
+  border-color: rgba(184, 0, 53, 0.6) !important;
+}
+[data-theme="velvet"] .from-orange-500\/10 {
+  --tw-gradient-from: rgba(184, 0, 53, 0.1) !important;
+}
+[data-theme="velvet"] .to-pink-500\/10 {
+  --tw-gradient-to: rgba(225, 29, 72, 0.1) !important;
+}
+
+/* ── Hover gradient overrides ── */
+[data-theme="velvet"] .hover\:from-orange-500\/20:hover {
+  --tw-gradient-from: rgba(184, 0, 53, 0.2) !important;
+}
+[data-theme="velvet"] .hover\:to-pink-500\/20:hover {
+  --tw-gradient-to: rgba(225, 29, 72, 0.2) !important;
+}
+
+/* ── Group hover ── */
+[data-theme="velvet"] .group-hover\:text-orange-400 {
+  color: #b80035 !important;
+}
+
+/* ── Badge text ── */
+[data-theme="velvet"] .text-\[10px\].font-bold.bg-orange-500\/20.text-orange-400 {
+  color: #b80035 !important;
+  background-color: rgba(184, 0, 53, 0.1) !important;
+}
+
+/* ── Keep white text on gradient buttons ── */
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white,
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500.text-white {
+  color: #ffffff !important;
+}
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.to-pink-500 .text-white,
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.font-bold {
+  color: #ffffff !important;
+}
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.text-\[10px\] {
+  color: #ffffff !important;
+}
+[data-theme="velvet"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.shadow-lg {
+  color: #ffffff !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   KINETIC EMERALD THEME — Accent Overrides
+   Primary: #006c49  Light: #10b981
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Gradient overrides: orange→pink becomes emerald ── */
+[data-theme="kinetic"] .from-orange-500 {
+  --tw-gradient-from: #006c49 !important;
+}
+[data-theme="kinetic"] .from-orange-400 {
+  --tw-gradient-from: #10b981 !important;
+}
+[data-theme="kinetic"] .via-orange-500,
+[data-theme="kinetic"] .via-orange-400 {
+  --tw-gradient-via: #006c49 !important;
+}
+[data-theme="kinetic"] .to-pink-500 {
+  --tw-gradient-to: #10b981 !important;
+}
+
+/* Brand gradient button */
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+}
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+}
+
+/* Brand gradient text — MUST use background-image */
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+}
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+}
+
+/* ── Orange text accents → emerald ── */
+[data-theme="kinetic"] .text-orange-400 {
+  color: #006c49 !important;
+}
+[data-theme="kinetic"] .text-orange-500 {
+  color: #006c49 !important;
+}
+[data-theme="kinetic"] .text-orange-200 {
+  color: #006c49 !important;
+}
+
+/* ── Orange bg accents → emerald ── */
+[data-theme="kinetic"] .bg-orange-500 {
+  background-color: #006c49 !important;
+}
+[data-theme="kinetic"] .bg-orange-900\/20 {
+  background-color: rgba(0, 108, 73, 0.1) !important;
+}
+[data-theme="kinetic"] .bg-orange-500\/20 {
+  background-color: rgba(0, 108, 73, 0.15) !important;
+}
+
+/* ── Orange border accents → emerald ── */
+[data-theme="kinetic"] .border-orange-500 {
+  border-color: #006c49 !important;
+}
+[data-theme="kinetic"] .border-orange-700\/50 {
+  border-color: rgba(0, 108, 73, 0.3) !important;
+}
+[data-theme="kinetic"] .border-orange-500\/30 {
+  border-color: rgba(0, 108, 73, 0.3) !important;
+}
+
+/* ── Focus ring ── */
+[data-theme="kinetic"] .focus\:border-orange-500:focus {
+  border-color: #006c49 !important;
+}
+[data-theme="kinetic"] .focus\:ring-orange-500\/20:focus {
+  --tw-ring-color: rgba(0, 108, 73, 0.2) !important;
+}
+[data-theme="kinetic"] .focus\:ring-orange-500:focus {
+  --tw-ring-color: #006c49 !important;
+}
+
+/* ── Hover borders ── */
+[data-theme="kinetic"] .hover\:border-orange-500:hover {
+  border-color: #006c49 !important;
+}
+[data-theme="kinetic"] .hover\:border-orange-500\/50:hover {
+  border-color: rgba(0, 108, 73, 0.5) !important;
+}
+
+/* ── Peer-checked toggle ── */
+[data-theme="kinetic"] .peer-checked\:bg-gradient-to-r {
+  background-image: linear-gradient(to right, #006c49, #10b981) !important;
+}
+
+/* ── Pro Access card gradient ── */
+[data-theme="kinetic"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
+  background-image: linear-gradient(to bottom right, rgba(0, 108, 73, 0.08), rgba(16, 185, 129, 0.08)) !important;
+}
+
+/* ── Credit pack best deal border ── */
+[data-theme="kinetic"] .border-2.border-orange-500\/60 {
+  border-color: rgba(0, 108, 73, 0.6) !important;
+}
+[data-theme="kinetic"] .from-orange-500\/10 {
+  --tw-gradient-from: rgba(0, 108, 73, 0.1) !important;
+}
+[data-theme="kinetic"] .to-pink-500\/10 {
+  --tw-gradient-to: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* ── Hover gradient overrides ── */
+[data-theme="kinetic"] .hover\:from-orange-500\/20:hover {
+  --tw-gradient-from: rgba(0, 108, 73, 0.2) !important;
+}
+[data-theme="kinetic"] .hover\:to-pink-500\/20:hover {
+  --tw-gradient-to: rgba(16, 185, 129, 0.2) !important;
+}
+
+/* ── Group hover ── */
+[data-theme="kinetic"] .group-hover\:text-orange-400 {
+  color: #006c49 !important;
+}
+
+/* ── Badge text ── */
+[data-theme="kinetic"] .text-\[10px\].font-bold.bg-orange-500\/20.text-orange-400 {
+  color: #006c49 !important;
+  background-color: rgba(0, 108, 73, 0.1) !important;
+}
+
+/* ── Keep white text on gradient buttons ── */
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white,
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500.text-white {
+  color: #ffffff !important;
+}
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.to-pink-500 .text-white,
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.font-bold {
+  color: #ffffff !important;
+}
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.text-\[10px\] {
+  color: #ffffff !important;
+}
+[data-theme="kinetic"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.shadow-lg {
+  color: #ffffff !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   INDIGO NIGHT THEME — Accent Overrides
+   Primary: #3525cd  Light: #4f46e5
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Gradient overrides: orange→pink becomes indigo ── */
+[data-theme="indigo"] .from-orange-500 {
+  --tw-gradient-from: #3525cd !important;
+}
+[data-theme="indigo"] .from-orange-400 {
+  --tw-gradient-from: #4f46e5 !important;
+}
+[data-theme="indigo"] .via-orange-500,
+[data-theme="indigo"] .via-orange-400 {
+  --tw-gradient-via: #3525cd !important;
+}
+[data-theme="indigo"] .to-pink-500 {
+  --tw-gradient-to: #4f46e5 !important;
+}
+
+/* Brand gradient button */
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+}
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+}
+
+/* Brand gradient text — MUST use background-image */
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+}
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+}
+
+/* ── Orange text accents → indigo ── */
+[data-theme="indigo"] .text-orange-400 {
+  color: #3525cd !important;
+}
+[data-theme="indigo"] .text-orange-500 {
+  color: #3525cd !important;
+}
+[data-theme="indigo"] .text-orange-200 {
+  color: #3525cd !important;
+}
+
+/* ── Orange bg accents → indigo ── */
+[data-theme="indigo"] .bg-orange-500 {
+  background-color: #3525cd !important;
+}
+[data-theme="indigo"] .bg-orange-900\/20 {
+  background-color: rgba(53, 37, 205, 0.1) !important;
+}
+[data-theme="indigo"] .bg-orange-500\/20 {
+  background-color: rgba(53, 37, 205, 0.15) !important;
+}
+
+/* ── Orange border accents → indigo ── */
+[data-theme="indigo"] .border-orange-500 {
+  border-color: #3525cd !important;
+}
+[data-theme="indigo"] .border-orange-700\/50 {
+  border-color: rgba(53, 37, 205, 0.3) !important;
+}
+[data-theme="indigo"] .border-orange-500\/30 {
+  border-color: rgba(53, 37, 205, 0.3) !important;
+}
+
+/* ── Focus ring ── */
+[data-theme="indigo"] .focus\:border-orange-500:focus {
+  border-color: #3525cd !important;
+}
+[data-theme="indigo"] .focus\:ring-orange-500\/20:focus {
+  --tw-ring-color: rgba(53, 37, 205, 0.2) !important;
+}
+[data-theme="indigo"] .focus\:ring-orange-500:focus {
+  --tw-ring-color: #3525cd !important;
+}
+
+/* ── Hover borders ── */
+[data-theme="indigo"] .hover\:border-orange-500:hover {
+  border-color: #3525cd !important;
+}
+[data-theme="indigo"] .hover\:border-orange-500\/50:hover {
+  border-color: rgba(53, 37, 205, 0.5) !important;
+}
+
+/* ── Peer-checked toggle ── */
+[data-theme="indigo"] .peer-checked\:bg-gradient-to-r {
+  background-image: linear-gradient(to right, #3525cd, #4f46e5) !important;
+}
+
+/* ── Pro Access card gradient ── */
+[data-theme="indigo"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
+  background-image: linear-gradient(to bottom right, rgba(53, 37, 205, 0.08), rgba(79, 70, 229, 0.08)) !important;
+}
+
+/* ── Credit pack best deal border ── */
+[data-theme="indigo"] .border-2.border-orange-500\/60 {
+  border-color: rgba(53, 37, 205, 0.6) !important;
+}
+[data-theme="indigo"] .from-orange-500\/10 {
+  --tw-gradient-from: rgba(53, 37, 205, 0.1) !important;
+}
+[data-theme="indigo"] .to-pink-500\/10 {
+  --tw-gradient-to: rgba(79, 70, 229, 0.1) !important;
+}
+
+/* ── Hover gradient overrides ── */
+[data-theme="indigo"] .hover\:from-orange-500\/20:hover {
+  --tw-gradient-from: rgba(53, 37, 205, 0.2) !important;
+}
+[data-theme="indigo"] .hover\:to-pink-500\/20:hover {
+  --tw-gradient-to: rgba(79, 70, 229, 0.2) !important;
+}
+
+/* ── Group hover ── */
+[data-theme="indigo"] .group-hover\:text-orange-400 {
+  color: #3525cd !important;
+}
+
+/* ── Badge text ── */
+[data-theme="indigo"] .text-\[10px\].font-bold.bg-orange-500\/20.text-orange-400 {
+  color: #3525cd !important;
+  background-color: rgba(53, 37, 205, 0.1) !important;
+}
+
+/* ── Keep white text on gradient buttons ── */
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white,
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500.text-white {
+  color: #ffffff !important;
+}
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.to-pink-500 .text-white,
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.font-bold {
+  color: #ffffff !important;
+}
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.text-\[10px\] {
+  color: #ffffff !important;
+}
+[data-theme="indigo"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.shadow-lg {
+  color: #ffffff !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   MONOLITH THEME — Ultra-Dark with White/Silver Accents
+   BG: #131315  Accent: white → #d4d4d4 metallic
+   This is a DARK theme variant — no light-base overrides
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Body & Base ── */
+[data-theme="monolith"] body {
+  background-color: #131315 !important;
+  color: #e4e4e7 !important;
+}
+
+/* ── Scrollbar ── */
+[data-theme="monolith"] ::-webkit-scrollbar-track {
+  background: #1a1a1d !important;
+}
+[data-theme="monolith"] ::-webkit-scrollbar-thumb {
+  background: #3f3f46 !important;
+}
+[data-theme="monolith"] ::-webkit-scrollbar-thumb:hover {
+  background: #52525b !important;
+}
+
+/* ── Selection ── */
+[data-theme="monolith"] ::selection {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+/* ── Page backgrounds (darker than default dark) ── */
+[data-theme="monolith"] .bg-gray-950 {
+  background-color: #131315 !important;
+}
+[data-theme="monolith"] .bg-black {
+  background-color: #131315 !important;
+}
+[data-theme="monolith"] .bg-gray-900 {
+  background-color: #1a1a1d !important;
+}
+[data-theme="monolith"] .bg-gray-800 {
+  background-color: #27272a !important;
+}
+[data-theme="monolith"] .bg-gray-950\/50,
+[data-theme="monolith"] .bg-gray-900\/50 {
+  background-color: rgba(26, 26, 29, 0.5) !important;
+}
+
+/* ── Card styling ── */
+[data-theme="monolith"] .bg-gray-900.rounded-2xl,
+[data-theme="monolith"] .bg-gray-900.rounded-xl,
+[data-theme="monolith"] .bg-gray-900.rounded-lg {
+  border: 1px solid #27272a !important;
+}
+
+/* ── Text colors — white/silver metallic palette ── */
+[data-theme="monolith"] .text-white {
+  color: #fafafa !important;
+}
+[data-theme="monolith"] .text-gray-200 {
+  color: #d4d4d8 !important;
+}
+[data-theme="monolith"] .text-gray-300 {
+  color: #a1a1aa !important;
+}
+[data-theme="monolith"] .text-gray-400 {
+  color: #71717a !important;
+}
+[data-theme="monolith"] .text-gray-500 {
+  color: #52525b !important;
+}
+
+/* ── Placeholder ── */
+[data-theme="monolith"] .placeholder-gray-500::placeholder {
+  color: #52525b !important;
+}
+
+/* ── Border colors ── */
+[data-theme="monolith"] .border-gray-700 {
+  border-color: #3f3f46 !important;
+}
+[data-theme="monolith"] .border-gray-800 {
+  border-color: #27272a !important;
+}
+[data-theme="monolith"] .border-gray-900 {
+  border-color: #1a1a1d !important;
+}
+
+/* ── Gradient overrides: orange→pink becomes white→silver ── */
+[data-theme="monolith"] .from-orange-500 {
+  --tw-gradient-from: #ffffff !important;
+}
+[data-theme="monolith"] .from-orange-400 {
+  --tw-gradient-from: #d4d4d8 !important;
+}
+[data-theme="monolith"] .via-orange-500,
+[data-theme="monolith"] .via-orange-400 {
+  --tw-gradient-via: #a1a1aa !important;
+}
+[data-theme="monolith"] .to-pink-500 {
+  --tw-gradient-to: #d4d4d8 !important;
+}
+
+/* Brand gradient button — white metallic */
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+}
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+}
+
+/* Brand gradient text — MUST use background-image */
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
+  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+}
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
+  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+}
+
+/* ── Make transparent text clip still work ── */
+[data-theme="monolith"] .bg-clip-text.text-transparent {
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ── Orange text accents → white ── */
+[data-theme="monolith"] .text-orange-400 {
+  color: #ffffff !important;
+}
+[data-theme="monolith"] .text-orange-500 {
+  color: #ffffff !important;
+}
+[data-theme="monolith"] .text-orange-200 {
+  color: #d4d4d8 !important;
+}
+
+/* ── Orange bg accents → white/silver ── */
+[data-theme="monolith"] .bg-orange-500 {
+  background-color: #ffffff !important;
+}
+[data-theme="monolith"] .bg-orange-900\/20 {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+[data-theme="monolith"] .bg-orange-500\/20 {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Orange border accents → white/silver ── */
+[data-theme="monolith"] .border-orange-500 {
+  border-color: #ffffff !important;
+}
+[data-theme="monolith"] .border-orange-700\/50 {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+[data-theme="monolith"] .border-orange-500\/30 {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ── Focus ring ── */
+[data-theme="monolith"] .focus\:border-orange-500:focus {
+  border-color: #ffffff !important;
+}
+[data-theme="monolith"] .focus\:ring-orange-500\/20:focus {
+  --tw-ring-color: rgba(255, 255, 255, 0.15) !important;
+}
+[data-theme="monolith"] .focus\:ring-orange-500:focus {
+  --tw-ring-color: #ffffff !important;
+}
+
+/* ── Hover states ── */
+[data-theme="monolith"] .hover\:bg-gray-800:hover {
+  background-color: #3f3f46 !important;
+}
+[data-theme="monolith"] .hover\:bg-gray-700:hover {
+  background-color: #52525b !important;
+}
+[data-theme="monolith"] .hover\:border-gray-700:hover {
+  border-color: #52525b !important;
+}
+[data-theme="monolith"] .hover\:border-orange-500:hover {
+  border-color: #ffffff !important;
+}
+[data-theme="monolith"] .hover\:border-orange-500\/50:hover {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* ── Peer-checked toggle ── */
+[data-theme="monolith"] .peer-checked\:bg-gradient-to-r {
+  background-image: linear-gradient(to right, #ffffff, #d4d4d8) !important;
+}
+
+/* ── Nav bar ── */
+[data-theme="monolith"] nav.border-b.border-gray-900,
+[data-theme="monolith"] nav.flex.items-center.justify-between {
+  background-color: rgba(19, 19, 21, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-color: #27272a !important;
+}
+
+/* ── Input / textarea fields ── */
+[data-theme="monolith"] .bg-gray-900.border.border-gray-800.rounded-2xl,
+[data-theme="monolith"] .bg-gray-900.border.border-gray-800.rounded-lg,
+[data-theme="monolith"] textarea.bg-gray-900,
+[data-theme="monolith"] input.bg-gray-900 {
+  background-color: #1a1a1d !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+
+/* ── Pro Access card gradient ── */
+[data-theme="monolith"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
+  background-image: linear-gradient(to bottom right, rgba(255, 255, 255, 0.04), rgba(212, 212, 216, 0.04)) !important;
+}
+
+/* ── Credit pack best deal border ── */
+[data-theme="monolith"] .border-2.border-orange-500\/60 {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+[data-theme="monolith"] .from-orange-500\/10 {
+  --tw-gradient-from: rgba(255, 255, 255, 0.05) !important;
+}
+[data-theme="monolith"] .to-pink-500\/10 {
+  --tw-gradient-to: rgba(212, 212, 216, 0.05) !important;
+}
+
+/* ── Hover gradient overrides ── */
+[data-theme="monolith"] .hover\:from-orange-500\/20:hover {
+  --tw-gradient-from: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="monolith"] .hover\:to-pink-500\/20:hover {
+  --tw-gradient-to: rgba(212, 212, 216, 0.1) !important;
+}
+
+/* ── Group hover ── */
+[data-theme="monolith"] .group-hover\:text-orange-400 {
+  color: #ffffff !important;
+}
+
+/* ── Badge text ── */
+[data-theme="monolith"] .text-\[10px\].font-bold.bg-orange-500\/20.text-orange-400 {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Button text — dark text on white metallic buttons ── */
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white,
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500.text-white {
+  color: #131315 !important;
+}
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.to-pink-500 .text-white,
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.font-bold {
+  color: #131315 !important;
+}
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.text-\[10px\] {
+  color: #131315 !important;
+}
+[data-theme="monolith"] .bg-gradient-to-r.from-orange-500.to-pink-500.text-white.shadow-lg {
+  color: #131315 !important;
+}
+
+/* ── Tables (admin) ── */
+[data-theme="monolith"] .divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a !important;
+}
+[data-theme="monolith"] .hover\:bg-gray-950:hover {
+  background-color: #18181b !important;
+}
+
+/* ── Footer ── */
+[data-theme="monolith"] footer.border-t.border-gray-900 {
+  border-color: #27272a !important;
+  background-color: #131315 !important;
+}
+
+/* ── Loading state ── */
+[data-theme="monolith"] .bg-gray-800\/40 {
+  background-color: rgba(39, 39, 42, 0.4) !important;
+}
+
+/* ── bg-gray-800 buttons ── */
+[data-theme="monolith"] .bg-gray-800.border.border-gray-700 {
+  background-color: #27272a !important;
+  border-color: #3f3f46 !important;
+}
+
+/* ── Shadow overrides ── */
+[data-theme="monolith"] .shadow-lg.shadow-red-500\/40 {
+  box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3) !important;
+}
+
+/* ── Red/green badges — keep ── */
+[data-theme="monolith"] .text-green-400 {
+  color: #4ade80 !important;
+}
+[data-theme="monolith"] .text-red-400 {
+  color: #f87171 !important;
+}

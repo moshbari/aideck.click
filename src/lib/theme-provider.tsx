@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-export type ThemeName = 'dark' | 'deckai';
+export type ThemeName = 'dark' | 'deckai' | 'velvet' | 'kinetic' | 'indigo' | 'monolith';
 
 interface ThemeContextType {
   theme: ThemeName;
@@ -25,7 +25,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     fetch('/api/theme')
       .then((r) => r.json())
       .then((d) => {
-        const t = d.theme === 'deckai' ? 'deckai' : 'dark';
+        const validThemes: ThemeName[] = ['dark', 'deckai', 'velvet', 'kinetic', 'indigo', 'monolith'];
+        const t: ThemeName = validThemes.includes(d.theme) ? d.theme : 'dark';
         setThemeState(t);
         document.documentElement.setAttribute('data-theme', t);
       })

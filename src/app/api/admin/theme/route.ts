@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { theme } = body;
 
-    if (!['dark', 'deckai'].includes(theme)) {
-      return NextResponse.json({ error: 'Invalid theme. Use "dark" or "deckai".' }, { status: 400 });
+    if (!['dark', 'deckai', 'velvet', 'kinetic', 'indigo', 'monolith'].includes(theme)) {
+      return NextResponse.json({ error: 'Invalid theme.' }, { status: 400 });
     }
 
     // Save to Supabase using admin client (bypasses RLS)
