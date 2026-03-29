@@ -485,10 +485,10 @@ export default function DashboardPage() {
                               <span className="text-xs text-gray-500">
                                 {formatFileSize(pres.file_size)}
                               </span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                 isExpiringSoon
                                   ? 'bg-red-500/20 text-red-400'
-                                  : 'bg-gray-700 text-gray-400'
+                                  : 'bg-orange-500/20 text-orange-400'
                               }`}>
                                 {days === 0 ? 'Expires today' : `${days} day${days !== 1 ? 's' : ''} left`}
                               </span>
