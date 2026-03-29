@@ -461,10 +461,13 @@ export default function Home() {
               Speak. Click. Present.
             </span>
           </h1>
-          <p className="text-lg sm:text-xl text-gray-300 mb-12 leading-relaxed max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-gray-300 mb-6 leading-relaxed max-w-2xl mx-auto">
             Dictate your idea or type it out. AI writes every slide, picks from
             20+ pro layouts, generates unique images, and adds click animations
             with presenter cues. Download and present.
+          </p>
+          <p className="text-sm sm:text-base font-semibold text-orange-400 mb-12">
+            Try it free — your first 2 decks are on us. No credit card needed.
           </p>
         </div>
       </div>
