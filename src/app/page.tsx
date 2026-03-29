@@ -265,20 +265,24 @@ export default function Home() {
       return;
     }
 
+    // Must be logged in to generate
+    if (!user || !profile) {
+      setError('Please sign up or log in to generate your free deck!');
+      return;
+    }
+
     // Credit/free deck check
-    if (profile) {
-      const hasFreeDeck = profile.lifetime_free_decks_used < profile.lifetime_free_decks_limit;
-      const hasCredits = profile.credits > 0;
-      if (!hasFreeDeck && !hasCredits) {
-        setError(profile.plan === 'free'
-          ? "You've used your 2 free decks. Sign in to your dashboard to buy credits and upgrade!"
-          : "You're out of credits. Visit your dashboard to buy more!");
-        return;
-      }
-      if (profile.status === 'inactive') {
-        setError('Your account has been deactivated. Please contact support.');
-        return;
-      }
+    const hasFreeDeck = profile.lifetime_free_decks_used < profile.lifetime_free_decks_limit;
+    const hasCredits = profile.credits > 0;
+    if (!hasFreeDeck && !hasCredits) {
+      setError(profile.plan === 'free'
+        ? "You've used your 2 free decks. Visit your dashboard to buy credits and upgrade!"
+        : "You're out of credits. Visit your dashboard to buy more!");
+      return;
+    }
+    if (profile.status === 'inactive') {
+      setError('Your account has been deactivated. Please contact support.');
+      return;
     }
 
     setIsLoading(true);
@@ -650,24 +654,33 @@ export default function Home() {
 
         {/* Generate Button or Download Button */}
         {!generatedFile ? (
-          <button
-            onClick={generateDeck}
-            disabled={isLoading}
-            className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-75 disabled:cursor-not-allowed bg-gradient-to-r from-orange-500 via-orange-400 to-pink-500 text-white shadow-xl hover:shadow-2xl animate-gradient"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="flex gap-1">
-                  <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot"></span>
-                  <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-100"></span>
-                  <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-200"></span>
+          user ? (
+            <button
+              onClick={generateDeck}
+              disabled={isLoading}
+              className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-75 disabled:cursor-not-allowed bg-gradient-to-r from-orange-500 via-orange-400 to-pink-500 text-white shadow-xl hover:shadow-2xl animate-gradient"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot"></span>
+                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-100"></span>
+                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-200"></span>
+                  </div>
+                  <span>{LoadingMessages[loadingMessageIndex]}</span>
                 </div>
-                <span>{LoadingMessages[loadingMessageIndex]}</span>
-              </div>
-            ) : (
-              'Generate Deck'
-            )}
-          </button>
+              ) : (
+                'Generate Deck'
+              )}
+            </button>
+          ) : (
+            <a
+              href="/signup"
+              className="block w-full py-4 px-6 rounded-xl font-bold text-lg text-center transition-all transform hover:scale-105 bg-gradient-to-r from-orange-500 via-orange-400 to-pink-500 text-white shadow-xl hover:shadow-2xl animate-gradient"
+            >
+              Sign Up Free to Generate
+            </a>
+          )
         ) : (
           <div className="flex gap-3">
             <button
