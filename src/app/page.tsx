@@ -457,14 +457,14 @@ export default function Home() {
       <div className="relative overflow-hidden px-4 py-20 sm:py-32">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-6 leading-tight">
-            AI Presentations in{' '}
             <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-pink-500 bg-clip-text text-transparent">
-              One Click
+              Speak. Click. Present.
             </span>
           </h1>
           <p className="text-lg sm:text-xl text-gray-300 mb-12 leading-relaxed max-w-2xl mx-auto">
-            Type what you want. Get a polished deck with animations and speaker
-            notes. Done.
+            Dictate your idea or type it out. AI writes every slide, picks from
+            20+ pro layouts, generates unique images, and adds click animations
+            with presenter cues. Download and present.
           </p>
         </div>
       </div>
@@ -703,29 +703,30 @@ export default function Home() {
             <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">
               1
             </div>
-            <h3 className="text-xl font-semibold mb-2">Describe</h3>
+            <h3 className="text-xl font-semibold mb-2">Speak or Type</h3>
             <p className="text-gray-400">
-              Tell us about your presentation topic and what you want to
-              communicate.
+              Describe your topic in the text box — or just click the mic and
+              talk. No keyboard needed.
             </p>
           </div>
           <div className="bg-gray-900 rounded-2xl p-8 text-center">
             <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">
               2
             </div>
-            <h3 className="text-xl font-semibold mb-2">Generate</h3>
+            <h3 className="text-xl font-semibold mb-2">AI Designs Everything</h3>
             <p className="text-gray-400">
-              Our AI creates a fully designed deck with animations and speaker
-              notes.
+              20+ pro layouts, AI-generated images, click animations, and
+              speaker notes — all built automatically.
             </p>
           </div>
           <div className="bg-gray-900 rounded-2xl p-8 text-center">
             <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">
               3
             </div>
-            <h3 className="text-xl font-semibold mb-2">Present</h3>
+            <h3 className="text-xl font-semibold mb-2">Download & Present</h3>
             <p className="text-gray-400">
-              Download your presentation and present with confidence.
+              Get a polished .pptx file ready for PowerPoint, Keynote, or
+              Google Slides. Present with confidence.
             </p>
           </div>
         </div>
