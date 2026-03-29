@@ -473,6 +473,19 @@ export default function Home() {
           <p className="text-sm sm:text-base font-semibold text-orange-400 mb-12">
             Try it free — your first 2 decks are on us. No credit card needed.
           </p>
+
+          {/* Demo Video */}
+          <div className="mx-auto max-w-3xl mb-4">
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                src="https://www.tella.tv/video/create-presentation-slides-with-ai-in-seconds-9lb9/embed?b=0&title=0&a=1&loop=0&autoPlay=false&t=0&muted=0&wt=0"
+                allowFullScreen
+                allow="autoplay; encrypted-media; fullscreen"
+                className="absolute inset-0 w-full h-full rounded-2xl"
+                style={{ border: 'none' }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
