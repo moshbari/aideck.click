@@ -81,3 +81,295 @@ button:focus {
   background: rgba(249, 115, 22, 0.3);
   color: #ffffff;
 }
+
+
+/* ═══════════════════════════════════════════════════════
+   DECKAI LIGHT THEME — Global CSS Overrides
+   Set data-theme="deckai" on <html> to activate
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Body & Base ── */
+[data-theme="deckai"] body {
+  background-color: #f9f9f9 !important;
+  color: #1a1c1c !important;
+}
+
+/* ── Scrollbar ── */
+[data-theme="deckai"] ::-webkit-scrollbar-track {
+  background: #f3f3f4 !important;
+}
+[data-theme="deckai"] ::-webkit-scrollbar-thumb {
+  background: #c3c5d9 !important;
+}
+[data-theme="deckai"] ::-webkit-scrollbar-thumb:hover {
+  background: #a0a3b5 !important;
+}
+
+/* ── Selection ── */
+[data-theme="deckai"] ::selection {
+  background: rgba(0, 62, 199, 0.2) !important;
+  color: #1a1c1c !important;
+}
+
+/* ── Page backgrounds ── */
+[data-theme="deckai"] .bg-gray-950 {
+  background-color: #f9f9f9 !important;
+}
+[data-theme="deckai"] .bg-black {
+  background-color: #f9f9f9 !important;
+}
+[data-theme="deckai"] .bg-gray-900 {
+  background-color: #ffffff !important;
+}
+[data-theme="deckai"] .bg-gray-800 {
+  background-color: #eeeeee !important;
+}
+[data-theme="deckai"] .bg-gray-950\/50,
+[data-theme="deckai"] .bg-gray-900\/50 {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* ── Card shadows (light theme needs shadows for depth) ── */
+[data-theme="deckai"] .bg-gray-900.rounded-2xl,
+[data-theme="deckai"] .bg-gray-900.rounded-xl,
+[data-theme="deckai"] .bg-gray-900.rounded-lg {
+  box-shadow: 0 4px 24px -4px rgba(26, 28, 28, 0.06) !important;
+}
+
+/* ── Text colors ── */
+[data-theme="deckai"] .text-white {
+  color: #1a1c1c !important;
+}
+[data-theme="deckai"] .text-gray-200 {
+  color: #434656 !important;
+}
+[data-theme="deckai"] .text-gray-300 {
+  color: #434656 !important;
+}
+[data-theme="deckai"] .text-gray-400 {
+  color: #565e74 !important;
+}
+[data-theme="deckai"] .text-gray-500 {
+  color: #737688 !important;
+}
+
+/* ── Placeholder ── */
+[data-theme="deckai"] .placeholder-gray-500::placeholder {
+  color: #737688 !important;
+}
+
+/* ── Border colors ── */
+[data-theme="deckai"] .border-gray-700 {
+  border-color: #c3c5d9 !important;
+}
+[data-theme="deckai"] .border-gray-800 {
+  border-color: #e2e2e2 !important;
+}
+[data-theme="deckai"] .border-gray-900 {
+  border-color: #e2e2e2 !important;
+}
+
+/* ── Gradient overrides: orange→pink becomes blue ── */
+[data-theme="deckai"] .from-orange-500 {
+  --tw-gradient-from: #003ec7 !important;
+}
+[data-theme="deckai"] .from-orange-400 {
+  --tw-gradient-from: #0052ff !important;
+}
+[data-theme="deckai"] .via-orange-500 {
+  --tw-gradient-via: #003ec7 !important;
+}
+[data-theme="deckai"] .via-orange-400 {
+  --tw-gradient-via: #003ec7 !important;
+}
+[data-theme="deckai"] .to-pink-500 {
+  --tw-gradient-to: #0052ff !important;
+}
+
+/* Brand gradient button — override to tertiary burnt orange */
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.via-orange-400.to-pink-500 {
+  background: linear-gradient(to right, #863500, #ad4600) !important;
+}
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-500.to-pink-500 {
+  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+}
+
+/* Brand gradient text (logo, headlines) — use blue */
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-400.via-orange-500.to-pink-500 {
+  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+}
+[data-theme="deckai"] .bg-gradient-to-r.from-orange-400.to-pink-500 {
+  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+}
+
+/* ── Orange text accents → blue ── */
+[data-theme="deckai"] .text-orange-400 {
+  color: #003ec7 !important;
+}
+[data-theme="deckai"] .text-orange-500 {
+  color: #003ec7 !important;
+}
+
+/* ── Orange background accents → blue ── */
+[data-theme="deckai"] .bg-orange-500 {
+  background-color: #003ec7 !important;
+}
+[data-theme="deckai"] .bg-orange-900\/20 {
+  background-color: rgba(0, 62, 199, 0.1) !important;
+}
+
+/* ── Orange border accents → blue ── */
+[data-theme="deckai"] .border-orange-500 {
+  border-color: #003ec7 !important;
+}
+[data-theme="deckai"] .border-orange-700\/50 {
+  border-color: rgba(0, 62, 199, 0.3) !important;
+}
+[data-theme="deckai"] .border-orange-500\/30 {
+  border-color: rgba(0, 62, 199, 0.3) !important;
+}
+
+/* ── Focus ring overrides ── */
+[data-theme="deckai"] .focus\:border-orange-500:focus {
+  border-color: #003ec7 !important;
+}
+[data-theme="deckai"] .focus\:ring-orange-500\/20:focus {
+  --tw-ring-color: rgba(0, 62, 199, 0.2) !important;
+}
+[data-theme="deckai"] .focus\:ring-orange-500:focus {
+  --tw-ring-color: #003ec7 !important;
+}
+
+/* ── Hover states ── */
+[data-theme="deckai"] .hover\:bg-gray-800:hover {
+  background-color: #e8e8e8 !important;
+}
+[data-theme="deckai"] .hover\:bg-gray-700:hover {
+  background-color: #dadada !important;
+}
+[data-theme="deckai"] .hover\:text-white:hover {
+  color: #1a1c1c !important;
+}
+[data-theme="deckai"] .hover\:border-gray-700:hover {
+  border-color: #c3c5d9 !important;
+}
+[data-theme="deckai"] .hover\:border-orange-500:hover {
+  border-color: #003ec7 !important;
+}
+[data-theme="deckai"] .hover\:border-orange-500\/50:hover {
+  border-color: rgba(0, 62, 199, 0.5) !important;
+}
+
+/* ── Peer-checked (toggle switches) ── */
+[data-theme="deckai"] .peer-checked\:bg-gradient-to-r {
+  background: linear-gradient(to right, #003ec7, #0052ff) !important;
+}
+
+/* ── Nav bar in light theme ── */
+[data-theme="deckai"] nav.border-b.border-gray-900,
+[data-theme="deckai"] nav.flex.items-center.justify-between {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-color: #e2e2e2 !important;
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ── Input / textarea fields ── */
+[data-theme="deckai"] .bg-gray-900.border.border-gray-800.rounded-2xl,
+[data-theme="deckai"] .bg-gray-900.border.border-gray-800.rounded-lg,
+[data-theme="deckai"] textarea.bg-gray-900,
+[data-theme="deckai"] input.bg-gray-900 {
+  background-color: #eeeeee !important;
+  border-color: #c3c5d9 !important;
+  color: #1a1c1c !important;
+}
+
+/* ── Red/green status badges (keep them as-is) ── */
+[data-theme="deckai"] .bg-green-500\/20 {
+  background-color: rgba(34, 197, 94, 0.15) !important;
+}
+[data-theme="deckai"] .bg-red-500\/20 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+[data-theme="deckai"] .text-green-400 {
+  color: #16a34a !important;
+}
+[data-theme="deckai"] .text-red-400 {
+  color: #dc2626 !important;
+}
+[data-theme="deckai"] .text-orange-200 {
+  color: #003ec7 !important;
+}
+
+/* ── Red button (recording mic) — keep red ── */
+[data-theme="deckai"] .bg-red-500 {
+  background-color: #dc2626 !important;
+}
+[data-theme="deckai"] .hover\:bg-red-600:hover {
+  background-color: #b91c1c !important;
+}
+
+/* ── Pro Access card gradient ── */
+[data-theme="deckai"] .bg-gradient-to-br.from-orange-500\/20.to-pink-500\/20 {
+  background: linear-gradient(to bottom right, rgba(0, 62, 199, 0.08), rgba(0, 82, 255, 0.08)) !important;
+}
+
+/* ── Credit pack best deal border ── */
+[data-theme="deckai"] .border-2.border-orange-500\/60 {
+  border-color: rgba(0, 62, 199, 0.6) !important;
+}
+[data-theme="deckai"] .from-orange-500\/10 {
+  --tw-gradient-from: rgba(0, 62, 199, 0.1) !important;
+}
+[data-theme="deckai"] .to-pink-500\/10 {
+  --tw-gradient-to: rgba(0, 82, 255, 0.1) !important;
+}
+
+/* ── Shadow overrides ── */
+[data-theme="deckai"] .shadow-lg.shadow-red-500\/40 {
+  box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3) !important;
+}
+
+/* ── Tables (admin) ── */
+[data-theme="deckai"] .divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e2e2 !important;
+}
+[data-theme="deckai"] .hover\:bg-gray-950:hover {
+  background-color: #f3f3f4 !important;
+}
+
+/* ── Pulse animation on orange → blue ── */
+[data-theme="deckai"] .animate-pulse.shadow-lg.shadow-red-500\/40 {
+  /* Keep red for recording indicator */
+}
+
+/* ── Footer ── */
+[data-theme="deckai"] footer.border-t.border-gray-900 {
+  border-color: #e2e2e2 !important;
+  background-color: #f3f3f4 !important;
+}
+
+/* ── Loading state ── */
+[data-theme="deckai"] .bg-gray-800\/40 {
+  background-color: rgba(238, 238, 238, 0.6) !important;
+}
+
+/* ── Misc orange/pink opacity variants ── */
+[data-theme="deckai"] .bg-orange-500\/20 {
+  background-color: rgba(0, 62, 199, 0.15) !important;
+}
+[data-theme="deckai"] .text-\[10px\].font-bold.bg-orange-500\/20.text-orange-400 {
+  color: #003ec7 !important;
+  background-color: rgba(0, 62, 199, 0.1) !important;
+}
+
+/* ── Make transparent text clip still work on light ── */
+[data-theme="deckai"] .bg-clip-text.text-transparent {
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ── Admin theme section specific ── */
+[data-theme="deckai"] .ring-2.ring-blue-500 {
+  --tw-ring-color: #003ec7 !important;
+}

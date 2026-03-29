@@ -5,10 +5,27 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { AideckProfile } from '@/lib/supabase/types';
+import { useTheme, ThemeName } from '@/lib/theme-provider';
+
+const THEME_OPTIONS: { id: ThemeName; label: string; description: string; preview: string }[] = [
+  {
+    id: 'dark',
+    label: 'Dark Mode (Default)',
+    description: 'Dark background, orange-pink gradients, glow effects. Current production theme.',
+    preview: 'bg-gray-950 border-orange-500',
+  },
+  {
+    id: 'deckai',
+    label: 'DeckAI Light',
+    description: 'Clean white background, blue primary, burnt-orange accent. Professional & editorial.',
+    preview: 'bg-white border-blue-600',
+  },
+];
 
 export default function AdminPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { theme: currentTheme, setTheme } = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -20,6 +37,8 @@ export default function AdminPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeMessage, setThemeMessage] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -29,7 +48,6 @@ export default function AdminPage() {
     try {
       setIsLoading(true);
 
-      // Check if user is authenticated
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
       if (authError || !user) {
@@ -37,7 +55,6 @@ export default function AdminPage() {
         return;
       }
 
-      // Fetch user profile and check if admin
       const { data: profile, error: profileError } = await supabase
         .from('aideck_profiles')
         .select('*')
@@ -59,7 +76,6 @@ export default function AdminPage() {
 
   const loadData = async () => {
     try {
-      // Fetch all users
       const { data: usersData, error: usersError } = await supabase
         .from('aideck_profiles')
         .select('*')
@@ -69,7 +85,6 @@ export default function AdminPage() {
 
       setUsers(usersData || []);
 
-      // Fetch stats
       const { count: totalCount } = await supabase
         .from('aideck_profiles')
         .select('*', { count: 'exact', head: true });
@@ -94,6 +109,37 @@ export default function AdminPage() {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleThemeChange = async (newTheme: ThemeName) => {
+    setThemeSaving(true);
+    setThemeMessage(null);
+
+    try {
+      const res = await fetch('/api/admin/theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: newTheme }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save theme');
+      }
+
+      // Update the live theme immediately
+      setTheme(newTheme);
+      setThemeMessage(`Theme switched to "${newTheme === 'dark' ? 'Dark Mode' : 'DeckAI Light'}" — all visitors will see this now.`);
+    } catch (err) {
+      setThemeMessage(
+        err instanceof Error
+          ? err.message
+          : 'Failed to save theme. Make sure the aideck_site_settings table exists in Supabase.'
+      );
+    } finally {
+      setThemeSaving(false);
     }
   };
 
@@ -135,7 +181,6 @@ export default function AdminPage() {
 
       const newCredits = user.credits + amount;
 
-      // Update profile
       const { error: updateError } = await supabase
         .from('aideck_profiles')
         .update({ credits: newCredits })
@@ -143,7 +188,6 @@ export default function AdminPage() {
 
       if (updateError) throw updateError;
 
-      // Record transaction
       const { error: txError } = await supabase
         .from('aideck_credit_transactions')
         .insert({
@@ -221,7 +265,7 @@ export default function AdminPage() {
                 href="/dashboard"
                 className="px-4 py-2 text-gray-300 hover:text-white transition"
               >
-                ← Back to Dashboard
+                &larr; Back to Dashboard
               </Link>
               <button
                 onClick={handleSignOut}
@@ -245,23 +289,78 @@ export default function AdminPage() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Total Users Card */}
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <div className="text-gray-400 text-sm font-medium mb-2">Total Users</div>
             <div className="text-4xl font-bold">{stats.totalUsers}</div>
           </div>
-
-          {/* Active Users Card */}
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <div className="text-gray-400 text-sm font-medium mb-2">Active Users</div>
             <div className="text-4xl font-bold">{stats.activeUsers}</div>
           </div>
-
-          {/* Total Generations Card */}
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <div className="text-gray-400 text-sm font-medium mb-2">Total Generations</div>
             <div className="text-4xl font-bold">{stats.totalGenerations}</div>
           </div>
+        </div>
+
+        {/* ═══ THEME SWITCHER ═══ */}
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8">
+          <h2 className="text-xl font-bold mb-2">Site Theme (A/B Testing)</h2>
+          <p className="text-gray-400 text-sm mb-6">
+            Switch the theme for ALL visitors. Changes take effect immediately — great for split testing different looks.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {THEME_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => handleThemeChange(opt.id)}
+                disabled={themeSaving}
+                className={`relative p-5 rounded-xl border-2 text-left transition-all ${
+                  currentTheme === opt.id
+                    ? 'border-blue-500 ring-2 ring-blue-500/30'
+                    : 'border-gray-700 hover:border-gray-600'
+                } ${themeSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {/* Active badge */}
+                {currentTheme === opt.id && (
+                  <span className="absolute top-3 right-3 text-xs font-bold bg-blue-500 text-white px-2 py-0.5 rounded-full">
+                    ACTIVE
+                  </span>
+                )}
+
+                {/* Preview strip */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className={`w-10 h-10 rounded-lg border-2 ${
+                      opt.id === 'dark'
+                        ? 'bg-gray-950 border-orange-500'
+                        : 'bg-white border-blue-600'
+                    }`}
+                  />
+                  <div className="font-semibold text-lg">{opt.label}</div>
+                </div>
+                <p className="text-gray-400 text-sm">{opt.description}</p>
+              </button>
+            ))}
+          </div>
+
+          {/* Theme save feedback */}
+          {themeMessage && (
+            <div
+              className={`p-3 rounded-lg text-sm ${
+                themeMessage.includes('Failed') || themeMessage.includes('error')
+                  ? 'bg-red-900/20 border border-red-500/50 text-red-400'
+                  : 'bg-green-900/20 border border-green-500/50 text-green-400'
+              }`}
+            >
+              {themeMessage}
+            </div>
+          )}
+
+          {themeSaving && (
+            <div className="text-sm text-gray-400 mt-2">Saving theme...</div>
+          )}
         </div>
 
         {/* Add User Section */}
@@ -350,7 +449,6 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <div className="flex gap-2">
-                          {/* Toggle Status Button */}
                           <button
                             onClick={() => handleToggleStatus(user.id, user.status)}
                             disabled={actionLoading === user.id}
@@ -358,8 +456,6 @@ export default function AdminPage() {
                           >
                             {actionLoading === user.id ? '...' : `${user.status === 'active' ? 'Deactivate' : 'Activate'}`}
                           </button>
-
-                          {/* Add Credits Button */}
                           <button
                             onClick={() => handleAddCredits(user.id, user.full_name || user.email)}
                             disabled={actionLoading === user.id}
@@ -367,8 +463,6 @@ export default function AdminPage() {
                           >
                             {actionLoading === user.id ? '...' : 'Add Credits'}
                           </button>
-
-                          {/* Toggle Role Button */}
                           <button
                             onClick={() => handleToggleRole(user.id, user.role)}
                             disabled={actionLoading === user.id}
