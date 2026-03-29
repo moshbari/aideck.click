@@ -1,8 +1,171 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { AideckProfile } from '@/lib/supabase/types';
+
+// ─── Voice Dictation Hook ───
+function useVoiceDictation(onTranscription: (text: string) => void) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopRecording = useCallback(() => {
+    // Clear silence timer
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    // Stop animation frame
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    // Stop the media recorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    // Stop all tracks on the stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsRecording(false);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Set up audio analysis for silence detection
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      // Set up MediaRecorder
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        // Clean up audio context
+        audioContext.close();
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
+        // Only transcribe if we have actual audio data (> 1KB to skip empty recordings)
+        if (audioBlob.size < 1000) {
+          return;
+        }
+
+        setIsTranscribing(true);
+        try {
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'recording.webm');
+
+          const res = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            throw new Error(data?.error || 'Transcription failed');
+          }
+
+          const data = await res.json();
+          if (data.text && data.text.trim()) {
+            onTranscription(data.text.trim());
+          }
+        } catch (err) {
+          console.error('Transcription error:', err);
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      // Start recording
+      mediaRecorder.start(250); // collect data every 250ms
+      setIsRecording(true);
+
+      // ─── Silence Detection (10 seconds of silence = auto-stop) ───
+      const SILENCE_THRESHOLD = 15; // amplitude threshold (0-255 scale)
+      const SILENCE_DURATION = 10000; // 10 seconds in ms
+      let lastSoundTime = Date.now();
+
+      const checkSilence = () => {
+        if (!analyserRef.current) return;
+
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteTimeDomainData(dataArray);
+
+        // Check if there's sound above the threshold
+        let maxAmplitude = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const amplitude = Math.abs(dataArray[i] - 128);
+          if (amplitude > maxAmplitude) maxAmplitude = amplitude;
+        }
+
+        if (maxAmplitude > SILENCE_THRESHOLD) {
+          lastSoundTime = Date.now();
+        }
+
+        // If silence for 10 seconds, stop recording
+        if (Date.now() - lastSoundTime > SILENCE_DURATION) {
+          stopRecording();
+          return;
+        }
+
+        animFrameRef.current = requestAnimationFrame(checkSilence);
+      };
+
+      animFrameRef.current = requestAnimationFrame(checkSilence);
+    } catch (err) {
+      console.error('Microphone access error:', err);
+      setIsRecording(false);
+    }
+  }, [onTranscription, stopRecording]);
+
+  const toggleRecording = useCallback(() => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }, [isRecording, startRecording, stopRecording]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  return { isRecording, isTranscribing, toggleRecording };
+}
 
 const TONE_OPTIONS = [
   { label: 'Professional', value: 'professional' },
@@ -50,6 +213,16 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [profile, setProfile] = useState<AideckProfile | null>(null);
+
+  // Voice dictation: append transcribed text as a new paragraph
+  const handleTranscription = useCallback((text: string) => {
+    setPrompt((prev) => {
+      if (!prev.trim()) return text;
+      return prev.trimEnd() + '\n\n' + text;
+    });
+  }, []);
+
+  const { isRecording, isTranscribing, toggleRecording } = useVoiceDictation(handleTranscription);
 
   // Auth check + restore last prompt from localStorage
   useEffect(() => {
@@ -298,14 +471,55 @@ export default function Home() {
 
       {/* Generator Section */}
       <div className="mx-auto max-w-2xl px-4 py-16">
-        {/* Textarea */}
-        <div className="mb-8">
+        {/* Textarea with Mic Button */}
+        <div className="mb-8 relative">
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe your presentation... e.g., Create a 10-slide pitch deck about our new product launch for investors"
-            className="w-full h-32 bg-gray-900 border border-gray-800 rounded-2xl px-6 py-4 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 resize-none"
+            placeholder="Describe your presentation... or click the mic to dictate with your voice!"
+            className="w-full h-32 bg-gray-900 border border-gray-800 rounded-2xl px-6 py-4 pr-16 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 resize-none"
           />
+          {/* Mic Button */}
+          <button
+            type="button"
+            onClick={toggleRecording}
+            disabled={isTranscribing}
+            title={isRecording ? 'Stop recording (auto-stops after 10s silence)' : isTranscribing ? 'Transcribing...' : 'Click to dictate with your voice'}
+            className={`absolute right-3 top-3 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              isRecording
+                ? 'bg-red-500 hover:bg-red-600 animate-pulse shadow-lg shadow-red-500/40'
+                : isTranscribing
+                  ? 'bg-orange-500/50 cursor-not-allowed'
+                  : 'bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-orange-500'
+            }`}
+          >
+            {isTranscribing ? (
+              <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : isRecording ? (
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+              </svg>
+            )}
+          </button>
+          {/* Recording indicator text */}
+          {isRecording && (
+            <div className="absolute right-16 top-4 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs text-red-400 font-medium">Recording...</span>
+            </div>
+          )}
+          {isTranscribing && (
+            <div className="absolute right-16 top-4 flex items-center gap-2">
+              <span className="text-xs text-orange-400 font-medium">Transcribing...</span>
+            </div>
+          )}
         </div>
 
         {/* Options Row 1: Tone */}
