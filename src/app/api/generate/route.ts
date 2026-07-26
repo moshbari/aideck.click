@@ -817,7 +817,7 @@ async function buildAndStreamDeck(
     console.log(`PPTX built: ${(pptxBuffer.length / 1024 / 1024).toFixed(1)} MB`);
 
     // Generate smart filename based on the presentation title
-    const smartFilename = generateSmartFilename(structure.title);
+    const smartFilename = generateSmartFilename(structure.title, prompt);
     const baseDescription = generateDescription(prompt, structure.title);
     const description = isImageDeck
       ? `[Full-Slide Images] ${baseDescription}`

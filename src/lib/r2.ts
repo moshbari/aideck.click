@@ -36,13 +36,22 @@ export async function uploadToR2(
   const client = getR2Client();
   const key = `${R2_PREFIX}${fileName}`;
 
+  // S3 metadata rides in HTTP headers, which are ASCII-only. A Bengali title
+  // used to throw "Invalid character in header content" and take the whole
+  // upload — and the user's saved copy — down with it.
+  const safeMetadata: Record<string, string> = {};
+  for (const [k, v] of Object.entries(metadata || {})) {
+    const ascii = String(v).replace(/[^\x20-\x7E]/g, '').trim();
+    if (ascii) safeMetadata[k] = ascii.slice(0, 512);
+  }
+
   await client.send(
     new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: key,
       Body: fileBuffer,
       ContentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      Metadata: metadata || {},
+      Metadata: safeMetadata,
     })
   );
 
@@ -109,15 +118,25 @@ export async function deleteFromR2(key: string): Promise<void> {
  * Generate a smart filename based on the presentation title/prompt
  * Format: Topic-Summary-YYYY-MM-DD-uniqueId.pptx
  */
-export function generateSmartFilename(title: string): string {
-  // Clean the title: remove special chars, limit words
-  const cleaned = title
-    .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters
+function toAsciiSlug(text: string): string {
+  return String(text || '')
+    .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters (and any non-Latin script)
     .trim()
-    .split(/\s+/) // Split by whitespace
-    .slice(0, 5) // Take first 5 words
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) // Title case
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 5)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join('-');
+}
+
+/**
+ * R2 keys and Content-Disposition stay ASCII, so a Bengali (or any non-Latin)
+ * title can't name the file. Rather than every such deck landing as a bare
+ * "Presentation", fall back to the user's own brief for something meaningful.
+ * The real title is stored in the database, where Unicode is fine.
+ */
+export function generateSmartFilename(title: string, fallbackText = ''): string {
+  const cleaned = toAsciiSlug(title) || toAsciiSlug(fallbackText) || 'Deck';
 
   // Add date
   const date = new Date();
