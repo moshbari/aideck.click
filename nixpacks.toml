@@ -1,0 +1,4 @@
+# Keep curl available in the runtime image — the bundled Claude CLI expects it
+# and Railway's Nixpacks base doesn't always include it.
+[phases.setup]
+aptPkgs = ["curl"]

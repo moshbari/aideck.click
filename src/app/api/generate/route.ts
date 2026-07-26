@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import sharp from 'sharp';
 import { generatePptx } from '@/lib/generate-pptx';
 import { generateImagePptx } from '@/lib/generate-image-pptx';
-import { DeckType, GenerateRequest, PresentationStructure, SlideData } from '@/lib/types';
+import { askClaudeForJson } from '@/lib/claude-cli';
+import { DeckType, GenerateRequest, Pacing, PresentationStructure, SlideData, getPacing } from '@/lib/types';
 import { uploadToR2, generateSmartFilename, generateDescription } from '@/lib/r2';
 import { createClient } from '@supabase/supabase-js';
 
-// Full-slide image decks paint one large picture per slide, so they need
-// more headroom than the designed decks.
-export const maxDuration = 300;
+// Full-slide image decks paint one large picture per slide, and a rapid-fire
+// deck can be 60 slides — these runs need real headroom.
+export const maxDuration = 800;
 
 // Color themes that are supported
 const VALID_THEMES = ['navy-gold', 'coral-energy', 'forest-green', 'charcoal-minimal'];
@@ -60,9 +60,17 @@ function validateGenerateRequest(body: any): { valid: boolean; error?: string } 
     };
   }
 
-  // Validate slides
-  if (!Number.isInteger(slides) || slides < 3 || slides > 20) {
-    return { valid: false, error: 'slides must be an integer between 3 and 20' };
+  // Validate slides — fast-paced decks (6s a slide) need a lot of them
+  if (!Number.isInteger(slides) || slides < 3 || slides > 60) {
+    return { valid: false, error: 'slides must be an integer between 3 and 60' };
+  }
+
+  // Validate secondsPerSlide (optional — how long each slide stays on screen)
+  const { secondsPerSlide } = body;
+  if (secondsPerSlide !== undefined) {
+    if (!Number.isInteger(secondsPerSlide) || secondsPerSlide < 3 || secondsPerSlide > 600) {
+      return { valid: false, error: 'secondsPerSlide must be an integer between 3 and 600' };
+    }
   }
 
   // Validate colorTheme
@@ -113,20 +121,55 @@ const PURPOSE_INSTRUCTIONS: Record<string, string> = {
 - End with a memorable, quotable takeaway the audience will remember.`,
 };
 
+// ─── PACING ───
+// "Six seconds a slide" (the Jason Fladlian style) only works if the script is
+// written to fit six seconds. This turns the chosen time-on-screen into a hard
+// word budget the writer has to hit.
+function buildPacingInstructions(pacing: Pacing, deckType: DeckType): string {
+  const mins = Math.floor(pacing.totalSeconds / 60);
+  const secs = pacing.totalSeconds % 60;
+  const runtime = mins > 0 ? `${mins} min${secs ? ` ${secs} sec` : ''}` : `${secs} sec`;
+
+  const lines = [
+    `PACING — THIS IS A HARD RULE:`,
+    `- Each slide stays on screen for exactly ${pacing.seconds} seconds.`,
+    `- So the speaker notes for EVERY slide must be about ${pacing.words} words — never fewer than ${pacing.minWords} and never more than ${pacing.maxWords}.`,
+    `- ${pacing.words} words is what a presenter actually says out loud in ${pacing.seconds} seconds at a natural pace. Count your words.`,
+    `- The finished deck runs about ${runtime} start to finish. Pace the story so it fits that length.`,
+  ];
+
+  if (pacing.seconds <= 12) {
+    lines.push(
+      `- This is a RAPID-FIRE deck. One single idea per slide. No slide tries to say two things.`,
+      `- Write short, punchy, spoken sentences. No long clauses, no lists inside the notes.`,
+      `- Momentum matters more than depth — each slide hands off to the next.`
+    );
+    if (deckType === 'designed') {
+      lines.push(`- Because the slide is only up for ${pacing.seconds} seconds, give it 1-3 short bullet points MAXIMUM. Nobody can read six bullets in ${pacing.seconds} seconds.`);
+    }
+  } else if (pacing.seconds <= 25) {
+    lines.push(`- This is a brisk deck. One clear idea per slide, said tightly.`);
+    if (deckType === 'designed') {
+      lines.push(`- Keep it to 2-4 short bullet points per slide so the audience can actually read them in ${pacing.seconds} seconds.`);
+    }
+  } else {
+    lines.push(`- There is room to explain, give an example, or tell a short story on each slide.`);
+    if (deckType === 'designed') {
+      lines.push(`- Use 4-6 bullet points per slide.`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 async function callClaudeAPI(
   prompt: string,
   tone: string,
   numberOfSlides: number,
   animations: boolean,
+  pacing: Pacing,
   purpose?: string
 ): Promise<PresentationStructure> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is not set');
-  }
-
-  const anthropic = new Anthropic({ apiKey });
-
   const animationInstructions = animations
     ? `SPEAKER NOTES WITH CLICK CUES:
 - The presentation uses click-based animations where each bullet point appears one at a time when the presenter clicks.
@@ -186,6 +229,8 @@ SLIDE RULES:
 6. Titles: max 8 words, clear and direct
 7. Bullet points: max 10 words each, punchy and scannable
 
+${buildPacingInstructions(pacing, 'designed')}
+
 ICONS — VERY IMPORTANT:
 - Every point MUST include an "icon" field with a SINGLE emoji that represents that point's meaning
 - Choose meaningful, diverse emojis — do NOT repeat the same icon on the same slide
@@ -209,52 +254,16 @@ TONE: "${tone}"
 - technical: Precise terms allowed but notes should still be easy to follow.
 
 QUALITY GUIDELINES:
-- Each slide should have substantial speaker notes (3-8 sentences minimum)
 - Notes should add value beyond what's on the slide — explain, give examples, tell stories
-- The presenter should be able to present for 1-2 minutes per slide using just the notes
 - Write notes in proper paragraphs with line breaks between ideas
+- Stay inside the word budget above; that budget is what keeps the deck on time
 
 ${purpose && PURPOSE_INSTRUCTIONS[purpose] ? PURPOSE_INSTRUCTIONS[purpose] : ''}
 
 Return the JSON object directly.`;
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      system: systemPrompt,
-    });
-
-    // Check if response was truncated
-    if (message.stop_reason === 'max_tokens') {
-      throw new Error('Response was truncated — try generating fewer slides or disabling animations');
-    }
-
-    // Extract text content from the response
-    const responseText = message.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as any).text)
-      .join('');
-
-    // Strip markdown code fences if present (e.g. ```json ... ```)
-    let cleanedText = responseText.trim();
-    if (cleanedText.startsWith('```')) {
-      cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-    }
-
-    // Parse the JSON response
-    let structure: PresentationStructure;
-    try {
-      structure = JSON.parse(cleanedText);
-    } catch (parseError) {
-      throw new Error(`Failed to parse Claude response as JSON: ${cleanedText.substring(0, 200)}`);
-    }
+    const structure: PresentationStructure = await askClaudeForJson(systemPrompt, prompt);
 
     // Validate structure
     if (!structure.title || typeof structure.title !== 'string') {
@@ -329,15 +338,9 @@ async function callClaudeForImageDeck(
   prompt: string,
   tone: string,
   numberOfSlides: number,
+  pacing: Pacing,
   purpose?: string
 ): Promise<PresentationStructure> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is not set');
-  }
-
-  const anthropic = new Anthropic({ apiKey });
-
   const systemPrompt = `You are an expert visual storyteller who designs image-only presentations.
 
 This deck has NO text on the slides. Every slide is ONE full-screen picture. The presenter reads a script from the presenter notes while the audience looks at the picture. Your job is to write that script and describe that picture for each slide.
@@ -383,8 +386,10 @@ IMAGE PROMPT RULES — VERY IMPORTANT:
 SPEAKER NOTES — THIS IS THE WHOLE SCRIPT:
 - The notes carry 100% of the message, because the slide shows only a picture
 - Write the exact words the presenter says out loud — a real script, not bullet points
-- 120–200 words per slide (about 45–90 seconds of speaking)
-- Write in flowing spoken paragraphs with line breaks between ideas
+- Write in spoken paragraphs with line breaks between ideas
+
+${buildPacingInstructions(pacing, 'full-image')}
+
 - Open the deck by greeting the audience and setting up the topic; close it with a clear ending or call to action
 - Never write [CLICK], "next slide", "as you can see on this slide", or any stage direction
 - Never refer to text on the screen — there is none. You may refer to the picture naturally ("the image behind me")
@@ -405,33 +410,7 @@ ${purpose && PURPOSE_INSTRUCTIONS[purpose] ? PURPOSE_INSTRUCTIONS[purpose] : ''}
 
 Return the JSON object directly.`;
 
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
-    messages: [{ role: 'user', content: prompt }],
-    system: systemPrompt,
-  });
-
-  if (message.stop_reason === 'max_tokens') {
-    throw new Error('Response was truncated — try generating fewer slides');
-  }
-
-  const responseText = message.content
-    .filter((block) => block.type === 'text')
-    .map((block) => (block as any).text)
-    .join('');
-
-  let cleanedText = responseText.trim();
-  if (cleanedText.startsWith('```')) {
-    cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-  }
-
-  let structure: PresentationStructure;
-  try {
-    structure = JSON.parse(cleanedText);
-  } catch {
-    throw new Error(`Failed to parse Claude response as JSON: ${cleanedText.substring(0, 200)}`);
-  }
+  const structure: PresentationStructure = await askClaudeForJson(systemPrompt, prompt);
 
   if (!structure.title || typeof structure.title !== 'string') {
     throw new Error('Claude response missing required "title" field');
@@ -489,7 +468,9 @@ async function generateFullSlideImages(
 
   const openai = new OpenAI({ apiKey });
   const quality = (process.env.FULL_IMAGE_QUALITY || 'medium') as 'low' | 'medium' | 'high';
-  const BATCH_SIZE = 4;
+  // Rapid-fire decks can run to 60 slides — widen the batch so a long deck
+  // still finishes inside the request window.
+  const BATCH_SIZE = slides.length > 20 ? 8 : 4;
 
   const renderSlide = async (slide: SlideData, index: number): Promise<void> => {
     if (!slide.imagePrompt) return;
@@ -543,8 +524,7 @@ async function generateSlideImages(slides: SlideData[]): Promise<void> {
 
   const openai = new OpenAI({ apiKey });
 
-  // Generate images for all slides in parallel
-  const imagePromises = slides.map(async (slide, index) => {
+  const renderSlide = async (slide: SlideData, index: number) => {
     if (!slide.imagePrompt) return;
 
     try {
@@ -563,9 +543,14 @@ async function generateSlideImages(slides: SlideData[]): Promise<void> {
       console.error(`Image generation error for slide ${index + 1}:`, error instanceof Error ? error.message : error);
       // Non-fatal: slide just won't have an image
     }
-  });
+  };
 
-  await Promise.all(imagePromises);
+  // Batched rather than all-at-once — a 60-slide deck would otherwise fire 60
+  // image requests in one go and trip the rate limit.
+  const BATCH_SIZE = 8;
+  for (let i = 0; i < slides.length; i += BATCH_SIZE) {
+    await Promise.all(slides.slice(i, i + BATCH_SIZE).map((slide, j) => renderSlide(slide, i + j)));
+  }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -595,13 +580,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const isImageDeck = deckType === 'full-image';
     // Full-slide image decks have nothing to animate — the slide is one picture
     const enableAnimations = !isImageDeck && animations === true;
+    // How long each slide stays on screen → how many words the script gets
+    const pacing = getPacing(body.secondsPerSlide ?? 30, slides);
 
     // Call Claude to generate structure
     let structure: PresentationStructure;
     try {
       structure = isImageDeck
-        ? await callClaudeForImageDeck(prompt, tone, slides, purpose)
-        : await callClaudeAPI(prompt, tone, slides, enableAnimations, purpose);
+        ? await callClaudeForImageDeck(prompt, tone, slides, pacing, purpose)
+        : await callClaudeAPI(prompt, tone, slides, enableAnimations, pacing, purpose);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Claude API error:', errorMessage);

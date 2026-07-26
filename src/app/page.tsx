@@ -189,7 +189,28 @@ const TONE_OPTIONS = [
   { label: 'Corporate', value: 'professional' },
 ] as const;
 
-const SLIDE_OPTIONS = [5, 8, 10, 15] as const;
+const SLIDE_OPTIONS = [5, 8, 10, 15, 20, 30, 40, 60] as const;
+
+// How long a slide stays on screen. This drives how many words go into the
+// presenter notes — a 6-second slide can't carry a 150-word script.
+const PACE_OPTIONS = [
+  { seconds: 6, label: '6 sec', note: 'Rapid-fire' },
+  { seconds: 10, label: '10 sec', note: 'Fast' },
+  { seconds: 20, label: '20 sec', note: 'Brisk' },
+  { seconds: 30, label: '30 sec', note: 'Standard' },
+  { seconds: 60, label: '60 sec', note: 'Detailed' },
+  { seconds: 120, label: '2 min', note: 'Deep dive' },
+] as const;
+
+const WORDS_PER_SECOND = 2.3; // ~138 words a minute, a natural speaking pace
+
+function formatRuntime(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  if (mins === 0) return `${secs} sec`;
+  if (secs === 0) return `${mins} min`;
+  return `${mins} min ${secs} sec`;
+}
 
 const COLOR_OPTIONS = [
   { label: 'Navy & Gold', value: 'navy-gold' },
@@ -227,6 +248,7 @@ export default function Home() {
   const [deckTypeIndex, setDeckTypeIndex] = useState(0);
   const [toneIndex, setToneIndex] = useState(0);
   const [slides, setSlides] = useState(10);
+  const [secondsPerSlide, setSecondsPerSlide] = useState(30);
   const [colorIndex, setColorIndex] = useState(0);
   const [purposeIndex, setPurposeIndex] = useState<number | null>(null);
   const [animations, setAnimations] = useState(true); // ON by default
@@ -251,6 +273,10 @@ export default function Home() {
   const deckType = DECK_TYPE_OPTIONS[deckTypeIndex].value;
   const isImageDeck = deckType === 'full-image';
   const activeLoadingMessages = isImageDeck ? ImageDeckLoadingMessages : LoadingMessages;
+
+  // What the pacing choice actually means, shown live under the picker
+  const wordsPerSlide = Math.max(8, Math.round(secondsPerSlide * WORDS_PER_SECOND));
+  const totalRuntime = formatRuntime(secondsPerSlide * slides);
 
   // Auth check + restore last prompt from localStorage
   useEffect(() => {
@@ -328,6 +354,7 @@ export default function Home() {
           prompt,
           tone: TONE_OPTIONS[toneIndex].value,
           slides,
+          secondsPerSlide,
           colorTheme: COLOR_OPTIONS[colorIndex].value,
           animations: isImageDeck ? false : animations,
           deckType,
@@ -641,6 +668,51 @@ export default function Home() {
                 {option}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Options Row 2b: Time on screen per slide — this sets the script length */}
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-300 mb-1">
+            Time on Screen per Slide
+          </label>
+          <p className="text-xs text-gray-500 mb-3">
+            Sets how long each slide is up — and how many words go into its presenter notes.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {PACE_OPTIONS.map((option) => (
+              <button
+                key={option.seconds}
+                onClick={() => setSecondsPerSlide(option.seconds)}
+                className={`px-5 py-2.5 rounded-full font-medium transition-all ${
+                  secondsPerSlide === option.seconds
+                    ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg'
+                    : 'bg-gray-900 text-gray-300 border border-gray-800 hover:border-gray-700'
+                }`}
+              >
+                {option.label}
+                <span className={`ml-2 text-xs ${secondsPerSlide === option.seconds ? 'text-white/80' : 'text-gray-500'}`}>
+                  {option.note}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 p-3 rounded-xl bg-gray-900 border border-gray-800 text-xs text-gray-400 leading-relaxed">
+            <span className="text-orange-400 font-semibold">~{wordsPerSlide} words</span> of script per slide
+            {' · '}
+            <span className="text-orange-400 font-semibold">{slides} slides</span>
+            {' · '}
+            total runtime <span className="text-orange-400 font-semibold">{totalRuntime}</span>
+            {secondsPerSlide <= 10 && (
+              <span className="block mt-1 text-gray-500">
+                Rapid-fire pacing keeps one idea per slide — you&apos;ll want plenty of slides to cover a topic.
+              </span>
+            )}
+            {isImageDeck && slides >= 30 && (
+              <span className="block mt-1 text-gray-500">
+                {slides} AI images take a few minutes to paint. Keep this tab open.
+              </span>
+            )}
           </div>
         </div>
 
