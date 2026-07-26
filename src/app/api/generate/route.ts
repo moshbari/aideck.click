@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import sharp from 'sharp';
 import { generatePptx } from '@/lib/generate-pptx';
 import { generateImagePptx } from '@/lib/generate-image-pptx';
-import { askClaudeForJson } from '@/lib/claude-cli';
+import { askClaudeForJson, usingSubscription } from '@/lib/claude-cli';
 import { DeckType, GenerateRequest, Pacing, PresentationStructure, SlideData, getPacing } from '@/lib/types';
 import { uploadToR2, generateSmartFilename, generateDescription } from '@/lib/r2';
 import { createClient } from '@supabase/supabase-js';
@@ -582,6 +582,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const enableAnimations = !isImageDeck && animations === true;
     // How long each slide stays on screen → how many words the script gets
     const pacing = getPacing(body.secondsPerSlide ?? 30, slides);
+
+    // Which brain is writing this deck — makes it obvious in the logs whether
+    // we're on the owner's Claude subscription or the API-key fallback.
+    console.log(
+      `Writing engine: ${usingSubscription() ? 'CLAUDE SUBSCRIPTION (claude CLI)' : 'ANTHROPIC API KEY (fallback)'}` +
+      ` | deck=${deckType} slides=${slides} secondsPerSlide=${pacing.seconds} wordsPerSlide=${pacing.words}`
+    );
 
     // Call Claude to generate structure
     let structure: PresentationStructure;
