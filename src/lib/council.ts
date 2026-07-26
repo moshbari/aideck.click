@@ -60,6 +60,16 @@ interface Strategy {
   throughLine: string;
   mustInclude: string[];
   mustAvoid: string[];
+  /**
+   * The voice the user asked for — a named author, a storytelling tradition, a
+   * house style, a language mix. Empty when they didn't ask for one.
+   *
+   * This exists because a brief saying "write it like Humayun Ahmed's Himu"
+   * used to be steamrollered by the writer's default "5th grade reading level,
+   * short sentences, simple words" rule. A requested voice now outranks it.
+   */
+  voice: string;
+  language: string;
 }
 
 interface Beat {
@@ -109,12 +119,20 @@ JSON SHAPE:
   "objections": ["the real reasons they will resist, 2-4 of them"],
   "throughLine": "the single argument the whole deck makes, in one sentence",
   "mustInclude": ["anything the user's brief explicitly demands — quote their requirements"],
-  "mustAvoid": ["anything the user's brief forbids, plus traps for this audience"]
+  "mustAvoid": ["anything the user's brief forbids, plus traps for this audience"],
+  "voice": "the writing voice or style the user asked for, described richly enough for a writer to reproduce it — or \"\" if they asked for none",
+  "language": "the language(s) the script must be written in, exactly as the user asked — or \"\" if they didn't say"
 }
 
 RULES:
 - If the user's brief names rules (words to use or avoid, currency, specific stories, exact wording), copy them into mustInclude / mustAvoid word for word. They are not suggestions.
-- Speak plainly. No marketing jargon.`;
+- Speak plainly. No marketing jargon.
+
+THE VOICE FIELD — GET THIS RIGHT, IT IS OFTEN WHAT THEY CARE ABOUT MOST:
+- If the brief names an author, a book, a character, a genre or a house style, capture it and then DESCRIBE what that voice actually does on the page: sentence rhythm, humour, how it handles silence, what it never does.
+- Example: "Humayun Ahmed's Himu voice — unhurried, deceptively simple sentences; dry deadpan humour; the narrator notices small ordinary details and lets them carry the weight; philosophical asides dropped without ceremony; never sentimental, never explains the joke."
+- If the brief asks for a language mix (Bangla + English, Banglish, Hinglish), say exactly how it should be mixed and in which script.
+- Do not flatten a literary request into "engaging and conversational". That is how a request for a real voice gets lost.`;
 
   return askClaudeForJson(system, briefBlock(input));
 }
@@ -176,6 +194,35 @@ function pacingRules(input: CouncilInput): string {
   return lines.join('\n');
 }
 
+/**
+ * The voice instruction handed to the writer.
+ *
+ * When the user asked for a specific voice, it wins outright — including over
+ * the plain-language default, which is right for a sales deck and completely
+ * wrong for a literary one. When they didn't ask for a voice, we keep the
+ * simple, spoken register that suits most presentations.
+ */
+function voiceBlock(strategy: Strategy): string {
+  const voice = String(strategy?.voice || '').trim();
+  const language = String(strategy?.language || '').trim();
+
+  if (!voice && !language) {
+    return `READING LEVEL:
+- 5th grade reading level. Short sentences. Simple words. Nothing show-offy.`;
+  }
+
+  return [
+    `THE VOICE — THIS IS THE POINT OF THE WHOLE DECK. HONOUR IT ABOVE EVERY STYLE DEFAULT:`,
+    voice ? `- ${voice}` : '',
+    language ? `- LANGUAGE: ${language}. Write in exactly that language and script, consistently, from the first slide to the last. Never drift into another script halfway through.` : '',
+    `- Do NOT flatten this into simple, generic, "easy-to-read" prose. There is no 5th grade reading level rule on this deck — the requested voice replaces it.`,
+    `- Write it the way that author or style would actually write it, at full quality. Rhythm, humour, restraint and word choice all matter more than simplicity here.`,
+    `- If the voice and plainness ever conflict, the voice wins.`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 // A 30-slide deck written in one call is slow and fragile. Past this size the
 // beat sheet is split and the batches are written side by side.
 const WRITE_CHUNK = 10;
@@ -224,9 +271,10 @@ ${shape}
 
 ${pacingRules(input)}
 
+${voiceBlock(strategy)}
+
 HOW TO WRITE THE SPOKEN SCRIPT:
 - Write the real words, out loud, as a person speaks — not bullet points, not an essay.
-- 5th grade reading level. Short sentences. Simple words.
 - Every slide's script must do its beat's JOB. If the beat says "handle the price objection", handle it.
 - Never say "as you can see on this slide" or "next slide" or "[CLICK]".
 - The last slide ends on the call to action, in the audience's own language.
@@ -476,6 +524,8 @@ WHAT TO LOOK FOR — in this order:
 5. Are there invented statistics or made-up specifics? Flag every number that nothing supports.
 6. Did the writer break any of the user's own rules? Those rules are binding.
 7. Is anything vague, corporate, or jargon-filled where it should be plain?
+8. THE VOICE: if a specific voice or style was requested, does the script genuinely read like it — or is it generic prose wearing that name? Judge it as someone who knows that author's work. Say which slides fall out of voice and how.
+9. LANGUAGE: if a language or language-mix was requested, is it used consistently and at real fluency, in one script throughout? Flag any slide that drifts, transliterates inconsistently, or reads like translated filler.
 
 RULES:
 - Do NOT count words or bullets. That was already checked by machine — the results are given to you.
@@ -550,11 +600,13 @@ ${shape}
 
 ${pacingRules(input)}
 
+${voiceBlock(strategy)}
+
 RULES:
 - Fix every item on both lists. Do not argue with them.
 - Return exactly the slides listed as YOURS TO FIX — no others, no extras.
 - Keep each slide's "n" exactly as given so it drops back into the right place.
-- Keep the 5th grade reading level and the spoken, out-loud voice.
+- Keep the voice above intact — fixing a slide must never flatten it.
 - The user's own rules still override everything: ${[...strategy.mustInclude, ...strategy.mustAvoid.map((a) => `never ${a}`)].join('; ') || '(none)'}`;
 
   const user = [
@@ -655,6 +707,16 @@ export async function runCouncil(
 ): Promise<PresentationStructure> {
   onProgress({ phase: 'strategy', detail: 'Working out who this deck is for' });
   const strategy = await runStrategist(input);
+
+  // Make it visible in the logs whether a requested voice survived the
+  // strategist — this is exactly what went missing on the Humayun Ahmed deck.
+  const voiceSummary = String(strategy?.voice || '').trim();
+  const languageSummary = String(strategy?.language || '').trim();
+  console.log(
+    voiceSummary || languageSummary
+      ? `Voice captured: ${voiceSummary || '(none)'} | language: ${languageSummary || '(unspecified)'}`
+      : 'Voice captured: none requested — using the plain spoken default'
+  );
 
   onProgress({ phase: 'structure', detail: `Laying out ${input.slideCount} beats` });
   const plan = await runArchitect(input, strategy);
