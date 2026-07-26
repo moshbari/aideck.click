@@ -195,15 +195,25 @@ export async function askClaudeForJson(
 
   // The CLI has no separate system-prompt channel in -p mode, so the
   // instructions and the user's topic go down as one prompt.
-  const combined = `${systemPrompt}\n\n---\n\nTHE USER'S REQUEST:\n${userPrompt}`;
+  const base = `${systemPrompt}\n\n---\n\nTHE USER'S REQUEST:\n${userPrompt}`;
 
-  const raw = usingSubscription()
-    ? await runClaudeCli(combined, timeoutMs)
-    : await runClaudeApi(combined, maxTokens);
+  // Two attempts — the second one nags harder for clean JSON. With a council of
+  // agents there are more chances for one of them to wrap output in prose.
+  let lastRaw = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const combined =
+      attempt === 0
+        ? base
+        : `${base}\n\nIMPORTANT: return ONLY the complete JSON object wrapped in <json></json> tags. No explanation, no markdown.`;
 
-  const parsed = extractJson(raw);
-  if (!parsed) {
-    throw new Error(`Failed to parse Claude response as JSON: ${raw.trim().substring(0, 200)}`);
+    const raw = usingSubscription()
+      ? await runClaudeCli(combined, timeoutMs)
+      : await runClaudeApi(combined, maxTokens);
+
+    lastRaw = raw;
+    const parsed = extractJson(raw);
+    if (parsed) return parsed;
   }
-  return parsed;
+
+  throw new Error(`Failed to parse Claude response as JSON: ${lastRaw.trim().substring(0, 200)}`);
 }

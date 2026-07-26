@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { generatePptx } from '@/lib/generate-pptx';
 import { generateImagePptx } from '@/lib/generate-image-pptx';
 import { askClaudeForJson, usingSubscription } from '@/lib/claude-cli';
+import { runCouncil, CouncilInput } from '@/lib/council';
 import {
   DeckType,
   GenerateRequest,
@@ -644,19 +645,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ` | images=${imageQuality} est.$${projectedImageCost.toFixed(2)}`
     );
 
-    // Call Claude to generate structure
+    // The council builds the deck: strategist → architect → writer + art
+    // director → timekeeper → coach → reviser. If any seat fails we fall back
+    // to the old single-pass writer rather than failing the whole request.
+    const councilInput: CouncilInput = {
+      prompt,
+      tone,
+      slideCount: slides,
+      pacing,
+      deckType,
+      animations: enableAnimations,
+      purpose,
+      purposeInstructions: purpose ? PURPOSE_INSTRUCTIONS[purpose] : undefined,
+      needsImages: imageQuality !== 'none',
+      paletteHint: isImageDeck ? resolvePalette(colorTheme, body.imagePalette) : null,
+    };
+
     let structure: PresentationStructure;
+    const councilStarted = Date.now();
     try {
-      structure = isImageDeck
-        ? await callClaudeForImageDeck(prompt, tone, slides, pacing, purpose)
-        : await callClaudeAPI(prompt, tone, slides, enableAnimations, pacing, purpose);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Claude API error:', errorMessage);
-      return NextResponse.json(
-        { error: `Failed to generate presentation: ${errorMessage}` },
-        { status: 500 }
+      structure = await runCouncil(councilInput, (p) =>
+        console.log(`  [council] ${p.phase}${p.detail ? `: ${p.detail}` : ''}`)
       );
+      console.log(`Council finished in ${Math.round((Date.now() - councilStarted) / 1000)}s`);
+    } catch (councilError) {
+      console.error(
+        'Council failed — falling back to single-pass writer:',
+        councilError instanceof Error ? councilError.message : councilError
+      );
+      try {
+        structure = isImageDeck
+          ? await callClaudeForImageDeck(prompt, tone, slides, pacing, purpose)
+          : await callClaudeAPI(prompt, tone, slides, enableAnimations, pacing, purpose);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('Claude API error:', errorMessage);
+        return NextResponse.json(
+          { error: `Failed to generate presentation: ${errorMessage}` },
+          { status: 500 }
+        );
+      }
     }
 
     // Generate the AI artwork for each slide — unless the user asked for none
