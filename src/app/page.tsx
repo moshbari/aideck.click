@@ -248,21 +248,29 @@ const PURPOSE_OPTIONS = [
   { label: 'Conference Talk', value: 'conference-talk' },
 ] as const;
 
-const LoadingMessages = [
-  'Planning your slides...',
-  'Writing content...',
-  'Designing layouts...',
-  'Adding animations...',
-  'Almost done...',
-];
+// The council's seats, as the user sees them light up. These are real phases
+// streamed from the server — not a timer pretending to make progress.
+const PHASE_LABELS: Record<string, string> = {
+  strategy: '🎯 Working out who this deck is for',
+  structure: '🏗 Structuring the story',
+  writing: '✍️ Writing your script',
+  art: '🎨 Art directing',
+  review: '🔍 Coach reviewing the draft',
+  revising: '↻ Applying the fixes',
+  images: '🖼 Painting the images',
+  building: '📦 Building your PowerPoint',
+  done: '✅ Finishing up',
+};
 
-const ImageDeckLoadingMessages = [
-  'Planning your story...',
-  'Writing your script...',
-  'Painting slide images...',
-  'This one takes a little longer...',
-  'Almost done...',
-];
+const PPTX_MIME =
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+function base64ToBlob(b64: string): Blob {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: PPTX_MIME });
+}
 
 export default function Home() {
   const [prompt, setPrompt] = useState('');
@@ -279,7 +287,8 @@ export default function Home() {
   const [purposeIndex, setPurposeIndex] = useState<number | null>(null);
   const [animations, setAnimations] = useState(true); // ON by default
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [phaseLabel, setPhaseLabel] = useState('Waking the council');
+  const [phaseDetail, setPhaseDetail] = useState('');
   const [generatedFile, setGeneratedFile] = useState<string | null>(null);
   const [generatedFilename, setGeneratedFilename] = useState<string>('presentation.pptx');
   const [error, setError] = useState<string | null>(null);
@@ -298,7 +307,6 @@ export default function Home() {
 
   const deckType = DECK_TYPE_OPTIONS[deckTypeIndex].value;
   const isImageDeck = deckType === 'full-image';
-  const activeLoadingMessages = isImageDeck ? ImageDeckLoadingMessages : LoadingMessages;
 
   // What the pacing choice actually means, shown live under the picker
   const wordsPerSlide = Math.max(8, Math.round(secondsPerSlide * WORDS_PER_SECOND));
@@ -339,13 +347,50 @@ export default function Home() {
     } catch {}
   }, []);
 
-  const startLoadingAnimation = () => {
-    let index = 0;
-    const interval = setInterval(() => {
-      index = (index + 1) % activeLoadingMessages.length;
-      setLoadingMessageIndex(index);
-    }, 2000);
-    return interval;
+  /**
+   * Reads the newline-delimited progress stream from /api/generate and returns
+   * the final "done" event. Phases come from the actual council seats, so what
+   * the user reads is what is genuinely happening.
+   */
+  const readDeckStream = async (res: Response) => {
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error('No response from the server');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finished: any = null;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let newline: number;
+      while ((newline = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, newline).trim();
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+
+        let event: any;
+        try {
+          event = JSON.parse(line);
+        } catch {
+          continue; // partial or stray line — ignore
+        }
+
+        if (event.type === 'phase') {
+          setPhaseLabel(PHASE_LABELS[event.phase] || 'Working');
+          setPhaseDetail(event.detail || '');
+        } else if (event.type === 'error') {
+          throw new Error(event.error || 'Generation failed');
+        } else if (event.type === 'done') {
+          finished = event;
+        }
+      }
+    }
+
+    if (!finished) throw new Error('The deck never finished — please try again');
+    return finished;
   };
 
   const generateDeck = async () => {
@@ -376,7 +421,8 @@ export default function Home() {
 
     setIsLoading(true);
     setError(null);
-    const interval = startLoadingAnimation();
+    setPhaseLabel('Waking the council');
+    setPhaseDetail('');
 
     try {
       // Save prompt to localStorage
@@ -406,15 +452,16 @@ export default function Home() {
         throw new Error(data?.error || 'Failed to generate deck');
       }
 
-      // Get the smart filename from response headers
-      const filename = res.headers.get('X-Presentation-Filename')
-        ? decodeURIComponent(res.headers.get('X-Presentation-Filename')!)
-        : 'presentation.pptx';
+      // Watch the council work, then collect the finished file
+      const finished = await readDeckStream(res);
 
-      const blob = await res.blob();
+      const blob = finished.url
+        ? await (await fetch(finished.url)).blob()
+        : base64ToBlob(finished.fileBase64);
+
       const url = window.URL.createObjectURL(blob);
       setGeneratedFile(url);
-      setGeneratedFilename(filename);
+      setGeneratedFilename(finished.filename || 'presentation.pptx');
 
       // Save file URL to localStorage
       try { localStorage.setItem('aideck_last_file', url); } catch {}
@@ -473,9 +520,7 @@ export default function Home() {
       }
       setError(friendlyMsg);
     } finally {
-      clearInterval(interval);
       setIsLoading(false);
-      setLoadingMessageIndex(0);
     }
   };
 
@@ -973,13 +1018,18 @@ export default function Home() {
               className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-75 disabled:cursor-not-allowed bg-gradient-to-r from-orange-500 via-orange-400 to-pink-500 text-white shadow-xl hover:shadow-2xl animate-gradient"
             >
               {isLoading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="flex gap-1">
-                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot"></span>
-                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-100"></span>
-                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-200"></span>
+                <div className="flex flex-col items-center justify-center gap-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="flex gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot"></span>
+                      <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-100"></span>
+                      <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-200"></span>
+                    </div>
+                    <span>{phaseLabel}</span>
                   </div>
-                  <span>{activeLoadingMessages[loadingMessageIndex]}</span>
+                  {phaseDetail && (
+                    <span className="text-xs font-normal text-white/75">{phaseDetail}</span>
+                  )}
                 </div>
               ) : (
                 'Generate Deck'
@@ -1006,7 +1056,8 @@ export default function Home() {
                 setGeneratedFile(null);
                 setGeneratedFilename('presentation.pptx');
                 setPrompt('');
-                setLoadingMessageIndex(0);
+                setPhaseLabel('Waking the council');
+                setPhaseDetail('');
                 setError(null);
                 setAnimations(true);
                 setPurposeIndex(null);

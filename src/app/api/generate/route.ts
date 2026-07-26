@@ -15,7 +15,7 @@ import {
   estimateImageCost,
   getPacing,
 } from '@/lib/types';
-import { uploadToR2, generateSmartFilename, generateDescription } from '@/lib/r2';
+import { uploadToR2, getDownloadUrl, generateSmartFilename, generateDescription } from '@/lib/r2';
 import { createClient } from '@supabase/supabase-js';
 
 // Full-slide image decks paint one large picture per slide, and a rapid-fire
@@ -605,27 +605,88 @@ async function generateSlideImages(
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Parse and validate up front — these are instant, so they answer as plain JSON.
+  let body: GenerateRequest;
   try {
-    // Parse request body
-    let body: GenerateRequest;
-    try {
-      body = await request.json();
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
-    }
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+  }
 
-    // Validate request
-    const validation = validateGenerateRequest(body);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error },
-        { status: 400 }
-      );
-    }
+  const validation = validateGenerateRequest(body);
+  if (!validation.valid) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+  }
 
+  // The cookie has to be read before we hand off to the stream
+  const cookieHeader = request.headers.get('cookie') || '';
+
+  /**
+   * From here on we STREAM.
+   *
+   * Railway's proxy kills any request that goes 300 seconds without sending
+   * bytes, and a full council run takes longer than that. Streaming progress
+   * events keeps the connection alive AND gives the user something honest to
+   * watch instead of fake rotating messages.
+   *
+   * Wire format is newline-delimited JSON:
+   *   {"type":"phase","phase":"strategy","detail":"..."}
+   *   {"type":"ping"}
+   *   {"type":"done","filename":"...","title":"...","url":"..."}
+   *   {"type":"error","error":"..."}
+   */
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let closed = false;
+      const send = (event: Record<string, unknown>) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          closed = true;
+        }
+      };
+      // A tick every 10s so a long silent stretch never looks idle to the proxy
+      const heartbeat = setInterval(() => send({ type: 'ping' }), 10000);
+
+      try {
+        await buildAndStreamDeck(body, cookieHeader, send);
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error);
+        console.error('Generation failed:', raw);
+        send({ type: 'error', error: raw });
+      } finally {
+        clearInterval(heartbeat);
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      }
+    },
+  });
+
+  return new NextResponse(stream, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, no-transform, must-revalidate',
+      'X-Accel-Buffering': 'no',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
+type SendFn = (event: Record<string, unknown>) => void;
+
+async function buildAndStreamDeck(
+  body: GenerateRequest,
+  cookieHeader: string,
+  send: SendFn
+): Promise<void> {
+  {
     const { prompt, tone, slides, colorTheme, animations, purpose } = body;
     const deckType: DeckType = body.deckType || 'designed';
     const isImageDeck = deckType === 'full-image';
@@ -664,33 +725,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let structure: PresentationStructure;
     const councilStarted = Date.now();
     try {
-      structure = await runCouncil(councilInput, (p) =>
-        console.log(`  [council] ${p.phase}${p.detail ? `: ${p.detail}` : ''}`)
-      );
+      structure = await runCouncil(councilInput, (p) => {
+        console.log(`  [council] ${p.phase}${p.detail ? `: ${p.detail}` : ''}`);
+        // The council's own 'done' is immediately followed by image and build
+        // phases, so don't flash "finishing up" at the user mid-run.
+        if (p.phase !== 'done') send({ type: 'phase', phase: p.phase, detail: p.detail });
+      });
       console.log(`Council finished in ${Math.round((Date.now() - councilStarted) / 1000)}s`);
     } catch (councilError) {
       console.error(
         'Council failed — falling back to single-pass writer:',
         councilError instanceof Error ? councilError.message : councilError
       );
-      try {
-        structure = isImageDeck
-          ? await callClaudeForImageDeck(prompt, tone, slides, pacing, purpose)
-          : await callClaudeAPI(prompt, tone, slides, enableAnimations, pacing, purpose);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Claude API error:', errorMessage);
-        return NextResponse.json(
-          { error: `Failed to generate presentation: ${errorMessage}` },
-          { status: 500 }
-        );
-      }
+      send({ type: 'phase', phase: 'writing', detail: 'Writing your deck' });
+      structure = isImageDeck
+        ? await callClaudeForImageDeck(prompt, tone, slides, pacing, purpose)
+        : await callClaudeAPI(prompt, tone, slides, enableAnimations, pacing, purpose);
     }
 
     // Generate the AI artwork for each slide — unless the user asked for none
     if (imageQuality === 'none') {
       console.log('Image quality set to "none" — skipping image generation (no image spend)');
     } else {
+      send({
+        type: 'phase',
+        phase: 'images',
+        detail: `Painting ${slides} image${slides === 1 ? '' : 's'} (${imageQuality})`,
+      });
       try {
         if (isImageDeck) {
           await generateFullSlideImages(
@@ -711,26 +772,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // A full-image deck with no images is just blank slides — fail loudly instead
     if (isImageDeck && !structure.slides.some((s) => s.imageData)) {
-      return NextResponse.json(
-        { error: 'Failed to generate presentation: image generation is unavailable right now' },
-        { status: 500 }
-      );
+      throw new Error('Image generation is unavailable right now');
     }
 
     // Generate PPTX
-    let pptxBuffer: Buffer;
-    try {
-      pptxBuffer = isImageDeck
-        ? await generateImagePptx(structure, colorTheme)
-        : await generatePptx(structure, colorTheme, enableAnimations);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('PPTX generation error:', errorMessage);
-      return NextResponse.json(
-        { error: `Failed to generate PPTX: ${errorMessage}` },
-        { status: 500 }
-      );
-    }
+    send({ type: 'phase', phase: 'building', detail: 'Building your PowerPoint file' });
+    const pptxBuffer: Buffer = isImageDeck
+      ? await generateImagePptx(structure, colorTheme)
+      : await generatePptx(structure, colorTheme, enableAnimations);
 
     // Generate smart filename based on the presentation title
     const smartFilename = generateSmartFilename(structure.title);
@@ -739,9 +788,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ? `[Full-Slide Images] ${baseDescription}`
       : baseDescription;
 
-    // Upload to R2 in the background (don't block the response)
-    // We fire-and-forget for speed — the file is also returned directly to the user
-    const r2UploadPromise = (async () => {
+    // The finished file goes to R2 and comes back as a signed link. We await it
+    // now because the download URL is what the client is waiting for.
+    const r2Result = await (async () => {
       try {
         // Check if R2 is configured
         if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
@@ -764,7 +813,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
           // Try to get the user from the auth cookie
-          const authHeader = request.headers.get('cookie') || '';
+          const authHeader = cookieHeader;
           let userId: string | null = null;
 
           // Parse the Supabase auth token from cookies
@@ -827,39 +876,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     })();
 
-    // Don't wait for R2 upload — let it happen in background
-    // But give it a small window to complete (for the metadata to be saved)
-    // Use waitUntil-style pattern: we await with a timeout
-    const r2WithTimeout = Promise.race([
-      r2UploadPromise,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
-    ]);
+    // Hand back a signed link when R2 is available; otherwise inline the file
+    // so the deck is never lost just because cloud storage is down.
+    let downloadUrl: string | null = null;
+    if (r2Result?.key) {
+      try {
+        downloadUrl = await getDownloadUrl(r2Result.key);
+      } catch (error) {
+        console.error('Could not sign download URL:', error instanceof Error ? error.message : error);
+      }
+    }
 
-    await r2WithTimeout;
-
-    // Return the PPTX file as a Blob with the smart filename
-    const uint8Array = new Uint8Array(pptxBuffer);
-    const blob = new Blob([uint8Array], {
-      type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    send({
+      type: 'done',
+      filename: smartFilename,
+      title: structure.title,
+      slides: structure.slides.length,
+      ...(downloadUrl
+        ? { url: downloadUrl }
+        : { fileBase64: pptxBuffer.toString('base64') }),
     });
-
-    return new NextResponse(blob, {
-      status: 200,
-      headers: {
-        'Content-Type':
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'Content-Disposition': `attachment; filename="${smartFilename}"`,
-        'X-Presentation-Title': encodeURIComponent(structure.title),
-        'X-Presentation-Filename': encodeURIComponent(smartFilename),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('API error:', errorMessage);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
   }
 }
