@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import sharp from 'sharp';
 import { generatePptx } from '@/lib/generate-pptx';
-import { GenerateRequest, PresentationStructure, SlideData } from '@/lib/types';
+import { generateImagePptx } from '@/lib/generate-image-pptx';
+import { DeckType, GenerateRequest, PresentationStructure, SlideData } from '@/lib/types';
 import { uploadToR2, generateSmartFilename, generateDescription } from '@/lib/r2';
 import { createClient } from '@supabase/supabase-js';
 
-export const maxDuration = 120;
+// Full-slide image decks paint one large picture per slide, so they need
+// more headroom than the designed decks.
+export const maxDuration = 300;
 
 // Color themes that are supported
 const VALID_THEMES = ['navy-gold', 'coral-energy', 'forest-green', 'charcoal-minimal'];
+
+// The two kinds of deck a user can ask for
+const VALID_DECK_TYPES: DeckType[] = ['designed', 'full-image'];
 
 // Valid tones for reading level guidance
 const VALID_TONES = [
@@ -26,7 +33,15 @@ function validateGenerateRequest(body: any): { valid: boolean; error?: string } 
     return { valid: false, error: 'Request body must be a JSON object' };
   }
 
-  const { prompt, tone, slides, colorTheme } = body;
+  const { prompt, tone, slides, colorTheme, deckType } = body;
+
+  // Validate deckType (optional — defaults to the classic designed deck)
+  if (deckType !== undefined && !VALID_DECK_TYPES.includes(deckType)) {
+    return {
+      valid: false,
+      error: `deckType must be one of: ${VALID_DECK_TYPES.join(', ')}`,
+    };
+  }
 
   // Validate prompt
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -297,6 +312,227 @@ Return the JSON object directly.`;
   }
 }
 
+// ─── FULL-SLIDE IMAGE DECK ───
+// Plain-English palette hints so the generated art matches the chosen theme.
+const THEME_PALETTES: Record<string, string> = {
+  'navy-gold': 'deep navy blue, warm gold, soft cream highlights',
+  'coral-energy': 'vivid coral red, warm gold, deep navy accents',
+  'forest-green': 'deep forest green, fresh sage green, off-white light',
+  'charcoal-minimal': 'charcoal grey, soft white, subtle black accents',
+};
+
+function getPalette(colorTheme: string): string {
+  return THEME_PALETTES[colorTheme] || THEME_PALETTES['navy-gold'];
+}
+
+async function callClaudeForImageDeck(
+  prompt: string,
+  tone: string,
+  numberOfSlides: number,
+  purpose?: string
+): Promise<PresentationStructure> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY environment variable is not set');
+  }
+
+  const anthropic = new Anthropic({ apiKey });
+
+  const systemPrompt = `You are an expert visual storyteller who designs image-only presentations.
+
+This deck has NO text on the slides. Every slide is ONE full-screen picture. The presenter reads a script from the presenter notes while the audience looks at the picture. Your job is to write that script and describe that picture for each slide.
+
+CRITICAL: Return ONLY valid JSON. No markdown, no code blocks, no extra text.
+
+JSON FORMAT:
+{
+  "title": "Presentation Title",
+  "visualStyle": "One art-direction sentence that ALL images share",
+  "slides": [
+    {
+      "type": "title|content|closing",
+      "title": "Short internal label for this slide (never shown to the audience)",
+      "speakerNotes": "The full word-for-word script the presenter says on this slide...",
+      "imagePrompt": "A wide cinematic scene of..."
+    }
+  ]
+}
+
+SLIDE RULES:
+1. Generate exactly ${numberOfSlides} slides total
+2. First slide: type "title" — an opening image that sets up the topic
+3. Middle slides: type "content" — one idea per slide, told in order
+4. Last slide: type "closing" — an image that lands the ending or call to action
+5. "title" is an internal label only (max 8 words) — it is NEVER printed on the slide
+
+VISUAL STYLE — VERY IMPORTANT:
+- "visualStyle" is a single sentence describing the look shared by every image (medium, lighting, mood, color feel)
+- It keeps all ${numberOfSlides} images looking like one deck instead of ${numberOfSlides} random pictures
+- Example: "Warm cinematic 3D illustration, soft rim lighting, shallow depth of field, calm confident mood"
+
+IMAGE PROMPT RULES — VERY IMPORTANT:
+- Every slide MUST include an "imagePrompt"
+- Describe ONE clear, striking, wide 16:9 scene that carries the meaning of that slide on its own
+- Write it as a vivid visual description: subject, setting, action, camera framing, mood
+- Fill the whole frame — this image IS the slide, so no empty white backgrounds and no floating icons
+- Keep each prompt under 70 words
+- Absolutely NO text, words, letters, numbers, labels, charts with writing, logos, or UI in the image
+- Each slide's image must be clearly different from the others — vary the subject and the camera angle
+- Do NOT repeat the same scene with small changes
+
+SPEAKER NOTES — THIS IS THE WHOLE SCRIPT:
+- The notes carry 100% of the message, because the slide shows only a picture
+- Write the exact words the presenter says out loud — a real script, not bullet points
+- 120–200 words per slide (about 45–90 seconds of speaking)
+- Write in flowing spoken paragraphs with line breaks between ideas
+- Open the deck by greeting the audience and setting up the topic; close it with a clear ending or call to action
+- Never write [CLICK], "next slide", "as you can see on this slide", or any stage direction
+- Never refer to text on the screen — there is none. You may refer to the picture naturally ("the image behind me")
+
+READING LEVEL — IMPORTANT:
+- ALL speaker notes MUST be written at a 5th grade reading level
+- Short sentences. Simple words. Break big ideas into small pieces.
+
+TONE: "${tone}"
+- professional: Clean, clear business language, still simple.
+- casual: Friendly and conversational, like talking to a friend.
+- creative: Vivid and colorful language, still simple and clear.
+- academic: Topic terms allowed, but explain them simply.
+- inspirational: Motivating, powerful, emotional and direct.
+- technical: Precise terms allowed, but keep the script easy to follow.
+
+${purpose && PURPOSE_INSTRUCTIONS[purpose] ? PURPOSE_INSTRUCTIONS[purpose] : ''}
+
+Return the JSON object directly.`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8192,
+    messages: [{ role: 'user', content: prompt }],
+    system: systemPrompt,
+  });
+
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error('Response was truncated — try generating fewer slides');
+  }
+
+  const responseText = message.content
+    .filter((block) => block.type === 'text')
+    .map((block) => (block as any).text)
+    .join('');
+
+  let cleanedText = responseText.trim();
+  if (cleanedText.startsWith('```')) {
+    cleanedText = cleanedText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+  }
+
+  let structure: PresentationStructure;
+  try {
+    structure = JSON.parse(cleanedText);
+  } catch {
+    throw new Error(`Failed to parse Claude response as JSON: ${cleanedText.substring(0, 200)}`);
+  }
+
+  if (!structure.title || typeof structure.title !== 'string') {
+    throw new Error('Claude response missing required "title" field');
+  }
+
+  if (!Array.isArray(structure.slides) || structure.slides.length === 0) {
+    throw new Error('Claude response must include at least one slide');
+  }
+
+  for (const slide of structure.slides) {
+    if (typeof slide.speakerNotes !== 'string' || slide.speakerNotes.trim().length === 0) {
+      throw new Error('Each slide must have a non-empty speakerNotes script');
+    }
+    if (typeof slide.imagePrompt !== 'string' || slide.imagePrompt.trim().length === 0) {
+      throw new Error('Each slide must have an imagePrompt');
+    }
+    if (!slide.title) slide.title = structure.title;
+    // Image decks carry no on-slide text at all
+    slide.points = undefined;
+  }
+
+  return structure;
+}
+
+/**
+ * gpt-image only offers square and 3:2 sizes, so we ask for the widest one
+ * (1536x1024) and centre-crop it to a true 16:9 frame. JPEG keeps the finished
+ * .pptx small — a deck of full-bleed PNGs would be enormous.
+ */
+async function prepareFullSlideImage(b64: string): Promise<string> {
+  try {
+    const cropped = await sharp(Buffer.from(b64, 'base64'))
+      .resize(1920, 1080, { fit: 'cover', position: 'centre' })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
+    return cropped.toString('base64');
+  } catch (error) {
+    console.error('16:9 crop failed, using original image:', error instanceof Error ? error.message : error);
+    return b64;
+  }
+}
+
+// Generate one full-bleed image per slide, a few at a time so we stay inside
+// the image API's rate limits on bigger decks.
+async function generateFullSlideImages(
+  slides: SlideData[],
+  visualStyle: string,
+  palette: string
+): Promise<void> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.log('OPENAI_API_KEY not set — skipping image generation');
+    return;
+  }
+
+  const openai = new OpenAI({ apiKey });
+  const quality = (process.env.FULL_IMAGE_QUALITY || 'medium') as 'low' | 'medium' | 'high';
+  const BATCH_SIZE = 4;
+
+  const renderSlide = async (slide: SlideData, index: number): Promise<void> => {
+    if (!slide.imagePrompt) return;
+
+    const fullPrompt = [
+      slide.imagePrompt,
+      visualStyle,
+      `Color palette: ${palette}.`,
+      'Wide 16:9 cinematic composition that fills the entire frame, edge to edge.',
+      'Absolutely no text, no words, no letters, no numbers, no logos, no watermarks, no borders.',
+    ].join(' ');
+
+    // One retry — a single hiccup shouldn't leave a hole in the deck
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await openai.images.generate({
+          model: 'gpt-image-1.5',
+          prompt: fullPrompt,
+          n: 1,
+          size: '1536x1024',
+          quality,
+        });
+
+        const b64 = response.data?.[0]?.b64_json;
+        if (b64) {
+          slide.imageData = await prepareFullSlideImage(b64);
+          return;
+        }
+      } catch (error) {
+        console.error(
+          `Full-slide image error (slide ${index + 1}, attempt ${attempt + 1}):`,
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
+  };
+
+  for (let i = 0; i < slides.length; i += BATCH_SIZE) {
+    const batch = slides.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map((slide, j) => renderSlide(slide, i + j)));
+  }
+}
+
 // ─── AI Image Generation (GPT Image 1.5) ───
 async function generateSlideImages(slides: SlideData[]): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -355,12 +591,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { prompt, tone, slides, colorTheme, animations, purpose } = body;
-    const enableAnimations = animations === true;
+    const deckType: DeckType = body.deckType || 'designed';
+    const isImageDeck = deckType === 'full-image';
+    // Full-slide image decks have nothing to animate — the slide is one picture
+    const enableAnimations = !isImageDeck && animations === true;
 
     // Call Claude to generate structure
     let structure: PresentationStructure;
     try {
-      structure = await callClaudeAPI(prompt, tone, slides, enableAnimations, purpose);
+      structure = isImageDeck
+        ? await callClaudeForImageDeck(prompt, tone, slides, purpose)
+        : await callClaudeAPI(prompt, tone, slides, enableAnimations, purpose);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Claude API error:', errorMessage);
@@ -370,19 +611,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Generate AI images for each slide (DALL-E)
+    // Generate the AI artwork for each slide
     try {
-      await generateSlideImages(structure.slides);
+      if (isImageDeck) {
+        await generateFullSlideImages(
+          structure.slides,
+          structure.visualStyle || 'Clean modern cinematic illustration with soft lighting.',
+          getPalette(colorTheme)
+        );
+      } else {
+        await generateSlideImages(structure.slides);
+      }
       console.log(`Image generation complete: ${structure.slides.filter(s => s.imageData).length}/${structure.slides.length} slides have images`);
     } catch (error) {
       console.error('Image generation error (non-blocking):', error instanceof Error ? error.message : error);
       // Non-fatal: presentation will still generate without images
     }
 
+    // A full-image deck with no images is just blank slides — fail loudly instead
+    if (isImageDeck && !structure.slides.some((s) => s.imageData)) {
+      return NextResponse.json(
+        { error: 'Failed to generate presentation: image generation is unavailable right now' },
+        { status: 500 }
+      );
+    }
+
     // Generate PPTX
     let pptxBuffer: Buffer;
     try {
-      pptxBuffer = await generatePptx(structure, colorTheme, enableAnimations);
+      pptxBuffer = isImageDeck
+        ? await generateImagePptx(structure, colorTheme)
+        : await generatePptx(structure, colorTheme, enableAnimations);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('PPTX generation error:', errorMessage);
@@ -394,7 +653,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Generate smart filename based on the presentation title
     const smartFilename = generateSmartFilename(structure.title);
-    const description = generateDescription(prompt, structure.title);
+    const baseDescription = generateDescription(prompt, structure.title);
+    const description = isImageDeck
+      ? `[Full-Slide Images] ${baseDescription}`
+      : baseDescription;
 
     // Upload to R2 in the background (don't block the response)
     // We fire-and-forget for speed — the file is also returned directly to the user

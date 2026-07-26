@@ -167,6 +167,21 @@ function useVoiceDictation(onTranscription: (text: string) => void) {
   return { isRecording, isTranscribing, toggleRecording };
 }
 
+const DECK_TYPE_OPTIONS = [
+  {
+    value: 'designed' as const,
+    icon: '🎨',
+    label: 'Designed Text Slides',
+    tagline: 'Headlines, bullet points, icons and 20+ pro layouts, with an AI image on every slide. Optional click animations.',
+  },
+  {
+    value: 'full-image' as const,
+    icon: '🖼️',
+    label: 'Full-Slide Image Deck',
+    tagline: 'Every slide is one full-screen 16:9 AI image — no text on screen at all. Your whole script sits in the presenter notes.',
+  },
+];
+
 const TONE_OPTIONS = [
   { label: 'Professional', value: 'professional' },
   { label: 'Casual', value: 'casual' },
@@ -199,8 +214,17 @@ const LoadingMessages = [
   'Almost done...',
 ];
 
+const ImageDeckLoadingMessages = [
+  'Planning your story...',
+  'Writing your script...',
+  'Painting slide images...',
+  'This one takes a little longer...',
+  'Almost done...',
+];
+
 export default function Home() {
   const [prompt, setPrompt] = useState('');
+  const [deckTypeIndex, setDeckTypeIndex] = useState(0);
   const [toneIndex, setToneIndex] = useState(0);
   const [slides, setSlides] = useState(10);
   const [colorIndex, setColorIndex] = useState(0);
@@ -223,6 +247,10 @@ export default function Home() {
   }, []);
 
   const { isRecording, isTranscribing, toggleRecording } = useVoiceDictation(handleTranscription);
+
+  const deckType = DECK_TYPE_OPTIONS[deckTypeIndex].value;
+  const isImageDeck = deckType === 'full-image';
+  const activeLoadingMessages = isImageDeck ? ImageDeckLoadingMessages : LoadingMessages;
 
   // Auth check + restore last prompt from localStorage
   useEffect(() => {
@@ -253,7 +281,7 @@ export default function Home() {
   const startLoadingAnimation = () => {
     let index = 0;
     const interval = setInterval(() => {
-      index = (index + 1) % LoadingMessages.length;
+      index = (index + 1) % activeLoadingMessages.length;
       setLoadingMessageIndex(index);
     }, 2000);
     return interval;
@@ -301,7 +329,8 @@ export default function Home() {
           tone: TONE_OPTIONS[toneIndex].value,
           slides,
           colorTheme: COLOR_OPTIONS[colorIndex].value,
-          animations,
+          animations: isImageDeck ? false : animations,
+          deckType,
           ...(purposeIndex !== null && { purpose: PURPOSE_OPTIONS[purposeIndex].value }),
         }),
       });
@@ -334,7 +363,7 @@ export default function Home() {
           purpose: purposeIndex !== null ? PURPOSE_OPTIONS[purposeIndex].value : null,
           slide_count: slides,
           color_theme: COLOR_OPTIONS[colorIndex].value,
-          animations,
+          animations: isImageDeck ? false : animations,
           credits_used: (profile.plan === 'free' && profile.lifetime_free_decks_used < profile.lifetime_free_decks_limit) ? 0 : 1,
         }).select().single();
 
@@ -468,7 +497,8 @@ export default function Home() {
           <p className="text-lg sm:text-xl text-gray-300 mb-6 leading-relaxed max-w-2xl mx-auto">
             Dictate your idea or type it out. AI writes every slide, picks from
             20+ pro layouts, generates unique images, and adds click animations
-            with presenter cues. Download and present.
+            with presenter cues. Or pick the full-slide image deck — pure 16:9
+            visuals with your whole script in the notes. Download and present.
           </p>
           <p className="text-sm sm:text-base font-semibold text-orange-400 mb-12">
             Try it free — your first 2 decks are on us. No credit card needed.
@@ -491,6 +521,34 @@ export default function Home() {
 
       {/* Generator Section */}
       <div className="mx-auto max-w-2xl px-4 py-8">
+        {/* Presentation Type — pick this first, it changes what you get */}
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-300 mb-3">
+            Presentation Type
+          </label>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {DECK_TYPE_OPTIONS.map((option, i) => (
+              <button
+                key={option.value}
+                onClick={() => setDeckTypeIndex(i)}
+                className={`text-left p-5 rounded-2xl border transition-all ${
+                  deckTypeIndex === i
+                    ? 'bg-gradient-to-br from-orange-500/20 to-pink-500/20 border-orange-500/60 shadow-lg'
+                    : 'bg-gray-900 border-gray-800 hover:border-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">{option.icon}</span>
+                  <span className={`font-bold ${deckTypeIndex === i ? 'text-white' : 'text-gray-200'}`}>
+                    {option.label}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">{option.tagline}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Textarea with Mic Button */}
         <div className="mb-8 relative">
           <textarea
@@ -588,9 +646,14 @@ export default function Home() {
 
         {/* Options Row 3: Color Theme */}
         <div className="mb-10">
-          <label className="block text-sm font-semibold text-gray-300 mb-3">
+          <label className="block text-sm font-semibold text-gray-300 mb-1">
             Color Theme
           </label>
+          <p className="text-xs text-gray-500 mb-3">
+            {isImageDeck
+              ? 'Sets the color palette your slide images are painted in.'
+              : 'Sets the colors used across your slide designs.'}
+          </p>
           <div className="flex flex-wrap gap-3">
             {COLOR_OPTIONS.map((option, i) => (
               <button
@@ -632,7 +695,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Options Row 5: Click Animations */}
+        {/* Options Row 5: Click Animations — designed decks only.
+            A full-slide image has nothing to animate, so we explain what you get instead. */}
+        {isImageDeck ? (
+          <div className="mb-10 p-4 bg-gray-900 border border-gray-800 rounded-xl">
+            <span className="text-sm font-semibold text-gray-300">🖼️ Full-Slide Image Deck</span>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Each slide is a single full-screen 16:9 image with no text on it. Your complete
+              word-for-word script goes into the presenter notes, so you talk while the picture
+              does the showing. No click animations needed.
+              <span className="text-orange-400 ml-1">Takes a bit longer to build.</span>
+            </p>
+          </div>
+        ) : (
         <div className="mb-10">
           <label className="flex items-start gap-3 cursor-pointer group">
             <div className="relative mt-0.5">
@@ -656,6 +731,7 @@ export default function Home() {
             </div>
           </label>
         </div>
+        )}
 
         {/* Error message */}
         {error && (
@@ -680,7 +756,7 @@ export default function Home() {
                     <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-100"></span>
                     <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-200"></span>
                   </div>
-                  <span>{LoadingMessages[loadingMessageIndex]}</span>
+                  <span>{activeLoadingMessages[loadingMessageIndex]}</span>
                 </div>
               ) : (
                 'Generate Deck'

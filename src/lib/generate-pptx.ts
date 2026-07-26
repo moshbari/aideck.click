@@ -151,7 +151,7 @@ function addSlideImage(
   }
 }
 
-function getTheme(themeName: string): ColorTheme {
+export function getTheme(themeName: string): ColorTheme {
   const theme = COLOR_THEMES[themeName as ColorThemeName];
   return theme || COLOR_THEMES['navy-gold'];
 }
