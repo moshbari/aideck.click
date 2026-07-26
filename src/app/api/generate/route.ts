@@ -360,8 +360,22 @@ const THEME_PALETTES: Record<string, string> = {
   'charcoal-minimal': 'charcoal grey, soft white, subtle black accents',
 };
 
-function getPalette(colorTheme: string): string {
-  return THEME_PALETTES[colorTheme] || THEME_PALETTES['navy-gold'];
+/**
+ * Work out the colour steer for a full-image deck.
+ *
+ * Returns null for "auto", which means we say nothing about colour at all and
+ * let the image model choose whatever suits the topic. The deck still hangs
+ * together because every image also carries the deck-wide `visualStyle` line
+ * that Claude wrote for it.
+ */
+function resolvePalette(colorTheme: string, imagePalette?: string): string | null {
+  const choice = (imagePalette ?? '').trim();
+
+  if (!choice || choice.toLowerCase() === 'auto') return null;
+  if (THEME_PALETTES[choice]) return THEME_PALETTES[choice];
+
+  // Anything else is the user's own words — used as-is
+  return choice.slice(0, 200);
 }
 
 async function callClaudeForImageDeck(
@@ -488,7 +502,7 @@ async function prepareFullSlideImage(b64: string): Promise<string> {
 async function generateFullSlideImages(
   slides: SlideData[],
   visualStyle: string,
-  palette: string,
+  palette: string | null,
   quality: 'low' | 'medium' | 'high'
 ): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -508,10 +522,13 @@ async function generateFullSlideImages(
     const fullPrompt = [
       slide.imagePrompt,
       visualStyle,
-      `Color palette: ${palette}.`,
+      // Omitted entirely on "auto" — the model picks colours to suit the topic
+      palette ? `Color palette: ${palette}.` : null,
       'Wide 16:9 cinematic composition that fills the entire frame, edge to edge.',
       'Absolutely no text, no words, no letters, no numbers, no logos, no watermarks, no borders.',
-    ].join(' ');
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     // One retry — a single hiccup shouldn't leave a hole in the deck
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -651,7 +668,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           await generateFullSlideImages(
             structure.slides,
             structure.visualStyle || 'Clean modern cinematic illustration with soft lighting.',
-            getPalette(colorTheme),
+            resolvePalette(colorTheme, body.imagePalette),
             imageQuality
           );
         } else {

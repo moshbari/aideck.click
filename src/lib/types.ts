@@ -57,6 +57,10 @@ export interface GenerateRequest {
   deckType?: DeckType; // defaults to 'designed'
   secondsPerSlide?: number; // how long each slide stays on screen; drives note length
   imageQuality?: ImageQuality; // defaults to 'low' — never spend more without being asked
+  // Full-image decks only. 'auto' (or empty) lets the AI choose colours to suit
+  // the topic; a preset name uses that theme's palette; anything else is used
+  // verbatim as your own palette description.
+  imagePalette?: string;
 }
 
 // A presenter speaks at roughly 138 words per minute, so seconds on screen

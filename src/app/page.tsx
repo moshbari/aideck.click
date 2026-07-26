@@ -271,6 +271,10 @@ export default function Home() {
   const [slides, setSlides] = useState(10);
   const [secondsPerSlide, setSecondsPerSlide] = useState(30);
   const [imageQuality, setImageQuality] = useState<'none' | 'low' | 'medium' | 'high'>('low');
+  // Full-image decks only: 'auto' = no colour steer at all, or a preset name,
+  // or 'custom' with your own words in customPalette.
+  const [paletteChoice, setPaletteChoice] = useState<string>('auto');
+  const [customPalette, setCustomPalette] = useState('');
   const [colorIndex, setColorIndex] = useState(0);
   const [purposeIndex, setPurposeIndex] = useState<number | null>(null);
   const [animations, setAnimations] = useState(true); // ON by default
@@ -387,6 +391,9 @@ export default function Home() {
           slides,
           secondsPerSlide,
           imageQuality: effectiveQuality,
+          ...(isImageDeck && {
+            imagePalette: paletteChoice === 'custom' ? customPalette.trim() || 'auto' : paletteChoice,
+          }),
           colorTheme: COLOR_OPTIONS[colorIndex].value,
           animations: isImageDeck ? false : animations,
           deckType,
@@ -800,14 +807,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Options Row 3: Color Theme */}
-        <div className="mb-10">
+        {/* Options Row 3: Color Theme — real design colors for designed decks,
+            and (for image decks) only a fallback card color */}
+        <div className={isImageDeck ? 'mb-8' : 'mb-10'}>
           <label className="block text-sm font-semibold text-gray-300 mb-1">
             Color Theme
           </label>
           <p className="text-xs text-gray-500 mb-3">
             {isImageDeck
-              ? 'Sets the color palette your slide images are painted in.'
+              ? 'Only used as a backup card color if an image ever fails. Picture colors are set below.'
               : 'Sets the colors used across your slide designs.'}
           </p>
           <div className="flex flex-wrap gap-3">
@@ -826,6 +834,65 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        {/* Image Colors — full-image decks only. Not a restriction: it's a hint
+            added to each image prompt so the deck looks like one set. */}
+        {isImageDeck && (
+          <div className="mb-10">
+            <label className="block text-sm font-semibold text-gray-300 mb-1">
+              Picture Colors
+            </label>
+            <p className="text-xs text-gray-500 mb-3">
+              A nudge, not a limit — your images can use any colors. This just keeps all{' '}
+              {slides} of them looking like one deck instead of {slides} unrelated pictures.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { value: 'auto', label: '✨ Auto', hint: 'AI picks to suit your topic' },
+                { value: 'navy-gold', label: 'Navy & Gold', hint: '' },
+                { value: 'coral-energy', label: 'Coral Energy', hint: '' },
+                { value: 'forest-green', label: 'Forest Green', hint: '' },
+                { value: 'charcoal-minimal', label: 'Charcoal Minimal', hint: '' },
+                { value: 'custom', label: '✏️ My own', hint: '' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setPaletteChoice(option.value)}
+                  className={`px-5 py-2.5 rounded-full font-medium transition-all ${
+                    paletteChoice === option.value
+                      ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg'
+                      : 'bg-gray-900 text-gray-300 border border-gray-800 hover:border-gray-700'
+                  }`}
+                >
+                  {option.label}
+                  {option.hint && (
+                    <span className={`ml-2 text-xs ${paletteChoice === option.value ? 'text-white/80' : 'text-gray-500'}`}>
+                      {option.hint}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {paletteChoice === 'custom' && (
+              <input
+                type="text"
+                value={customPalette}
+                onChange={(e) => setCustomPalette(e.target.value)}
+                maxLength={200}
+                placeholder="e.g. warm desert sand, terracotta and dusty pink, soft morning light"
+                className="mt-3 w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+              />
+            )}
+
+            {paletteChoice === 'auto' && (
+              <p className="mt-3 text-xs text-gray-500">
+                No color instruction is sent at all — the AI chooses whatever fits your subject,
+                and the deck still holds together because every image shares one art direction.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Options Row 4: Purpose (optional) */}
         <div className="mb-8">
