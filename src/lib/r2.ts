@@ -50,6 +50,30 @@ export async function uploadToR2(
 }
 
 /**
+ * Stream an object straight out of R2.
+ *
+ * Used by /api/download so the browser only ever talks to our own domain.
+ * Signed R2 links work for a plain link click but are blocked for fetch() —
+ * the bucket sends no access-control-allow-origin — which is how a finished
+ * deck could get lost after it had already been paid for and built.
+ */
+export async function getObjectStream(
+  key: string
+): Promise<{ body: ReadableStream; contentLength?: number }> {
+  const client = getR2Client();
+  const response = await client.send(
+    new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key })
+  );
+
+  if (!response.Body) throw new Error('Object has no body');
+
+  return {
+    body: (response.Body as any).transformToWebStream(),
+    contentLength: response.ContentLength,
+  };
+}
+
+/**
  * Generate a temporary download URL (valid for 1 hour)
  */
 export async function getDownloadUrl(key: string): Promise<string> {

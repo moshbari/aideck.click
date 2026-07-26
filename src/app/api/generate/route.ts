@@ -911,16 +911,13 @@ async function buildAndStreamDeck(
       }
     })();
 
-    // Hand back a signed link when R2 is available; otherwise inline the file
-    // so the deck is never lost just because cloud storage is down.
-    let downloadUrl: string | null = null;
-    if (r2Result?.key) {
-      try {
-        downloadUrl = await getDownloadUrl(r2Result.key);
-      } catch (error) {
-        console.error('Could not sign download URL:', error instanceof Error ? error.message : error);
-      }
-    }
+    // Serve the finished deck through our OWN domain. A signed R2 link can't be
+    // read by fetch() — the bucket sends no CORS headers — and that silently
+    // threw away a finished 40-slide deck that had already been paid for.
+    // If R2 never got the file we inline it instead, so nothing is ever lost.
+    const downloadUrl = r2Result?.key
+      ? `/api/download?file=${encodeURIComponent(smartFilename)}`
+      : null;
 
     console.log(`Delivering ${smartFilename}${downloadUrl ? ' via signed R2 link' : ' inline (R2 unavailable)'}`);
     send({

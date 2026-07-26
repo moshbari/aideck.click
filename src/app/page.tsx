@@ -354,6 +354,37 @@ export default function Home() {
   }, []);
 
   /**
+   * If the connection dropped mid-run, the deck may still have been finished
+   * and saved on the server. Check the library for one created in the last
+   * half hour before making anyone pay to generate it twice.
+   */
+  const rescueRecentDeck = async (): Promise<{ url: string; filename: string } | null> => {
+    try {
+      const res = await fetch('/api/presentations');
+      if (!res.ok) return null;
+
+      const data = await res.json().catch(() => null);
+      const list: any[] = data?.presentations || data?.data || [];
+      if (!Array.isArray(list) || !list.length) return null;
+
+      const halfHourAgo = Date.now() - 30 * 60 * 1000;
+      const fresh = list.find((p) => {
+        const created = new Date(p?.created_at || 0).getTime();
+        return created > halfHourAgo && p?.filename;
+      });
+      if (!fresh) return null;
+
+      const blob = await (
+        await fetch(`/api/download?file=${encodeURIComponent(fresh.filename)}`)
+      ).blob();
+
+      return { url: window.URL.createObjectURL(blob), filename: fresh.filename };
+    } catch {
+      return null;
+    }
+  };
+
+  /**
    * Reads the newline-delimited progress stream from /api/generate and returns
    * the final "done" event. Phases come from the actual council seats, so what
    * the user reads is what is genuinely happening.
@@ -518,9 +549,23 @@ export default function Home() {
       }
     } catch (err) {
       console.error(err);
+
+      // The deck may well have finished on the server even though we lost the
+      // connection — it's built, saved and paid for. Look before telling
+      // anyone to run it again.
+      const rescued = await rescueRecentDeck();
+      if (rescued) {
+        setGeneratedFile(rescued.url);
+        setGeneratedFilename(rescued.filename);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
       // Show friendly error messages instead of raw technical details
       const rawMsg = err instanceof Error ? err.message : '';
-      let friendlyMsg = "Something didn't go as planned — but no worries! Please try again in a moment.";
+      let friendlyMsg =
+        "Something didn't go as planned. Check My Presentations in your dashboard first — if your deck finished building, it's saved there and you don't need to generate it again.";
       if (rawMsg.includes('truncat') || rawMsg.includes('fewer slides')) {
         friendlyMsg = "That was a lot of content! Try selecting fewer slides or turning off animations, then try again.";
       } else if (rawMsg.includes('parse') || rawMsg.includes('JSON')) {
