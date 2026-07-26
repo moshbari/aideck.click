@@ -20,7 +20,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Full-slide image decks paint one large picture per slide, and a rapid-fire
 // deck can be 60 slides — these runs need real headroom.
-export const maxDuration = 800;
+export const maxDuration = 3600;
 
 // Color themes that are supported
 const VALID_THEMES = ['navy-gold', 'coral-energy', 'forest-green', 'charcoal-minimal'];
@@ -481,6 +481,59 @@ Return the JSON object directly.`;
 }
 
 /**
+ * Image generation limits, learned the hard way on AIPic: OpenAI rejects too
+ * many images at once, so we run a small batch, wait for it, then start the
+ * next. Five at a time is the number that behaves.
+ */
+const IMAGE_CONCURRENCY = 5;
+const IMAGE_ATTEMPTS = 3;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One image, with rate-limit manners. On a 429 we wait exactly as long as
+ * OpenAI asks (the retry-after header) instead of hammering it again.
+ */
+async function generateOneImage(
+  openai: OpenAI,
+  params: { prompt: string; size: '1024x1024' | '1536x1024'; quality: 'low' | 'medium' | 'high' },
+  label: string
+): Promise<string | null> {
+  for (let attempt = 1; attempt <= IMAGE_ATTEMPTS; attempt++) {
+    try {
+      const response = await openai.images.generate({
+        model: 'gpt-image-1.5',
+        prompt: params.prompt,
+        n: 1,
+        size: params.size,
+        quality: params.quality,
+      });
+      const b64 = response.data?.[0]?.b64_json;
+      if (b64) return b64;
+      console.error(`${label}: empty response on attempt ${attempt}`);
+    } catch (error) {
+      const err = error as { status?: number; headers?: Record<string, string>; message?: string };
+      const isRateLimited = err?.status === 429;
+      const lastTry = attempt === IMAGE_ATTEMPTS;
+
+      console.error(
+        `${label}: attempt ${attempt}/${IMAGE_ATTEMPTS} failed${isRateLimited ? ' (rate limited)' : ''} — ${err?.message || error}`
+      );
+      if (lastTry) break;
+
+      if (isRateLimited) {
+        // Wait exactly as long as OpenAI asked for
+        const retryAfter = parseInt(String(err?.headers?.['retry-after'] || '5'), 10);
+        await sleep((Number.isFinite(retryAfter) ? retryAfter : 5) * 1000);
+      } else {
+        await sleep(attempt * 1000);
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * gpt-image only offers square and 3:2 sizes, so we ask for the widest one
  * (1536x1024) and centre-crop it to a true 16:9 frame. JPEG keeps the finished
  * .pptx small — a deck of full-bleed PNGs would be enormous.
@@ -513,9 +566,6 @@ async function generateFullSlideImages(
   }
 
   const openai = new OpenAI({ apiKey });
-  // Rapid-fire decks can run to 60 slides — widen the batch so a long deck
-  // still finishes inside the request window.
-  const BATCH_SIZE = slides.length > 20 ? 8 : 4;
 
   const renderSlide = async (slide: SlideData, index: number): Promise<void> => {
     if (!slide.imagePrompt) return;
@@ -531,34 +581,21 @@ async function generateFullSlideImages(
       .filter(Boolean)
       .join(' ');
 
-    // One retry — a single hiccup shouldn't leave a hole in the deck
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const response = await openai.images.generate({
-          model: 'gpt-image-1.5',
-          prompt: fullPrompt,
-          n: 1,
-          size: '1536x1024',
-          quality,
-        });
-
-        const b64 = response.data?.[0]?.b64_json;
-        if (b64) {
-          slide.imageData = await prepareFullSlideImage(b64);
-          return;
-        }
-      } catch (error) {
-        console.error(
-          `Full-slide image error (slide ${index + 1}, attempt ${attempt + 1}):`,
-          error instanceof Error ? error.message : error
-        );
-      }
-    }
+    const b64 = await generateOneImage(
+      openai,
+      { prompt: fullPrompt, size: '1536x1024', quality },
+      `Full-slide image (slide ${index + 1})`
+    );
+    if (b64) slide.imageData = await prepareFullSlideImage(b64);
   };
 
-  for (let i = 0; i < slides.length; i += BATCH_SIZE) {
-    const batch = slides.slice(i, i + BATCH_SIZE);
-    await Promise.all(batch.map((slide, j) => renderSlide(slide, i + j)));
+  // Small batches, one after another — OpenAI rejects too many at once
+  for (let i = 0; i < slides.length; i += IMAGE_CONCURRENCY) {
+    const batch = slides.slice(i, i + IMAGE_CONCURRENCY);
+    console.log(
+      `Images ${i + 1}-${Math.min(i + IMAGE_CONCURRENCY, slides.length)} of ${slides.length}...`
+    );
+    await Promise.allSettled(batch.map((slide, j) => renderSlide(slide, i + j)));
   }
 }
 
@@ -578,29 +615,26 @@ async function generateSlideImages(
   const renderSlide = async (slide: SlideData, index: number) => {
     if (!slide.imagePrompt) return;
 
-    try {
-      const response = await openai.images.generate({
-        model: 'gpt-image-1.5',
+    const b64 = await generateOneImage(
+      openai,
+      {
         prompt: `${slide.imagePrompt}. Style: flat vector illustration, clean modern style, simple geometric shapes, vibrant colors, no text, no words, no letters, no numbers, presentation-ready graphic, white or transparent background.`,
-        n: 1,
         size: '1024x1024',
         quality,
-      });
-
-      if (response.data && response.data[0]?.b64_json) {
-        slide.imageData = response.data[0].b64_json;
-      }
-    } catch (error) {
-      console.error(`Image generation error for slide ${index + 1}:`, error instanceof Error ? error.message : error);
-      // Non-fatal: slide just won't have an image
-    }
+      },
+      `Slide image (slide ${index + 1})`
+    );
+    // Non-fatal: a slide without an image still renders fine
+    if (b64) slide.imageData = b64;
   };
 
-  // Batched rather than all-at-once — a 60-slide deck would otherwise fire 60
-  // image requests in one go and trip the rate limit.
-  const BATCH_SIZE = 8;
-  for (let i = 0; i < slides.length; i += BATCH_SIZE) {
-    await Promise.all(slides.slice(i, i + BATCH_SIZE).map((slide, j) => renderSlide(slide, i + j)));
+  // Small batches, one after another — OpenAI rejects too many at once
+  for (let i = 0; i < slides.length; i += IMAGE_CONCURRENCY) {
+    const batch = slides.slice(i, i + IMAGE_CONCURRENCY);
+    console.log(
+      `Images ${i + 1}-${Math.min(i + IMAGE_CONCURRENCY, slides.length)} of ${slides.length}...`
+    );
+    await Promise.allSettled(batch.map((slide, j) => renderSlide(slide, i + j)));
   }
 }
 
@@ -780,6 +814,7 @@ async function buildAndStreamDeck(
     const pptxBuffer: Buffer = isImageDeck
       ? await generateImagePptx(structure, colorTheme)
       : await generatePptx(structure, colorTheme, enableAnimations);
+    console.log(`PPTX built: ${(pptxBuffer.length / 1024 / 1024).toFixed(1)} MB`);
 
     // Generate smart filename based on the presentation title
     const smartFilename = generateSmartFilename(structure.title);
@@ -887,6 +922,7 @@ async function buildAndStreamDeck(
       }
     }
 
+    console.log(`Delivering ${smartFilename}${downloadUrl ? ' via signed R2 link' : ' inline (R2 unavailable)'}`);
     send({
       type: 'done',
       filename: smartFilename,

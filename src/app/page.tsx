@@ -248,19 +248,22 @@ const PURPOSE_OPTIONS = [
   { label: 'Conference Talk', value: 'conference-talk' },
 ] as const;
 
-// The council's seats, as the user sees them light up. These are real phases
-// streamed from the server — not a timer pretending to make progress.
-const PHASE_LABELS: Record<string, string> = {
-  strategy: '🎯 Working out who this deck is for',
-  structure: '🏗 Structuring the story',
-  writing: '✍️ Writing your script',
-  art: '🎨 Art directing',
-  review: '🔍 Coach reviewing the draft',
-  revising: '↻ Applying the fixes',
-  images: '🖼 Painting the images',
-  building: '📦 Building your PowerPoint',
-  done: '✅ Finishing up',
-};
+// The council's seats. These light up from real phases streamed by the server
+// — not a timer pretending to make progress.
+const COUNCIL_SEATS = [
+  { key: 'strategy', icon: '🎯', name: 'The Strategist', line: 'Working out who this deck is for' },
+  { key: 'structure', icon: '🏗', name: 'The Architect', line: 'Deciding what each slide is for' },
+  { key: 'writing', icon: '✍️', name: 'The Scriptwriter', line: 'Writing every word to the clock' },
+  { key: 'review', icon: '🔍', name: 'The Coach', line: 'Reading it back, hunting for weak slides' },
+  { key: 'revising', icon: '↻', name: 'The Reviser', line: 'Applying every note' },
+  { key: 'images', icon: '🖼', name: 'The Illustrator', line: 'Painting the pictures' },
+  { key: 'building', icon: '📦', name: 'The Producer', line: 'Building your PowerPoint' },
+] as const;
+
+const SEAT_INDEX: Record<string, number> = COUNCIL_SEATS.reduce(
+  (acc, seat, i) => ({ ...acc, [seat.key]: i }),
+  {}
+);
 
 const PPTX_MIME =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
@@ -287,8 +290,10 @@ export default function Home() {
   const [purposeIndex, setPurposeIndex] = useState<number | null>(null);
   const [animations, setAnimations] = useState(true); // ON by default
   const [isLoading, setIsLoading] = useState(false);
-  const [phaseLabel, setPhaseLabel] = useState('Waking the council');
-  const [phaseDetail, setPhaseDetail] = useState('');
+  const [activeSeat, setActiveSeat] = useState<string | null>(null);
+  const [seatDetail, setSeatDetail] = useState('');
+  const [reviewRound, setReviewRound] = useState(0);
+  const [furthestSeat, setFurthestSeat] = useState(-1);
   const [generatedFile, setGeneratedFile] = useState<string | null>(null);
   const [generatedFilename, setGeneratedFilename] = useState<string>('presentation.pptx');
   const [error, setError] = useState<string | null>(null);
@@ -320,6 +325,7 @@ export default function Home() {
   const costFor = (q: 'none' | 'low' | 'medium' | 'high') =>
     q === 'none' ? 0 : IMAGE_PRICES[deckType][q] * slides;
   const imageCost = costFor(effectiveQuality);
+  const imagesWanted = effectiveQuality !== 'none';
 
   // Auth check + restore last prompt from localStorage
   useEffect(() => {
@@ -379,8 +385,14 @@ export default function Home() {
         }
 
         if (event.type === 'phase') {
-          setPhaseLabel(PHASE_LABELS[event.phase] || 'Working');
-          setPhaseDetail(event.detail || '');
+          const key = event.phase === 'art' ? 'writing' : event.phase;
+          if (key in SEAT_INDEX) {
+            setActiveSeat(key);
+            setSeatDetail(event.detail || '');
+            setFurthestSeat((prev) => Math.max(prev, SEAT_INDEX[key]));
+            // The coach can send it round again — count the laps
+            if (key === 'review') setReviewRound((r) => r + 1);
+          }
         } else if (event.type === 'error') {
           throw new Error(event.error || 'Generation failed');
         } else if (event.type === 'done') {
@@ -421,8 +433,10 @@ export default function Home() {
 
     setIsLoading(true);
     setError(null);
-    setPhaseLabel('Waking the council');
-    setPhaseDetail('');
+    setActiveSeat(null);
+    setSeatDetail('');
+    setReviewRound(0);
+    setFurthestSeat(-1);
 
     try {
       // Save prompt to localStorage
@@ -1001,6 +1015,87 @@ export default function Home() {
         </div>
         )}
 
+        {/* The council chamber — each seat lights up as that agent works */}
+        {isLoading && (
+          <div className="mb-6 rounded-2xl border border-gray-800 bg-gray-900/60 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold text-gray-200">The deck council</span>
+              {reviewRound > 1 && (
+                <span className="text-xs px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 font-semibold">
+                  Review round {reviewRound}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              {COUNCIL_SEATS.map((seat, i) => {
+                const isActive = activeSeat === seat.key;
+                const isDone = i < furthestSeat && !isActive;
+                const skipped = seat.key === 'images' && !imagesWanted;
+
+                return (
+                  <div
+                    key={seat.key}
+                    className={`flex items-start gap-3 rounded-xl px-3 py-2 transition-all duration-500 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-orange-500/20 to-pink-500/10 border border-orange-500/40'
+                        : 'border border-transparent'
+                    }`}
+                  >
+                    <span
+                      className={`relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm transition-all duration-500 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-orange-500 to-pink-500 scale-110'
+                          : isDone
+                            ? 'bg-green-500/20'
+                            : 'bg-gray-800'
+                      }`}
+                    >
+                      {isActive && (
+                        <span className="absolute inset-0 rounded-full bg-orange-500/50 animate-ping" />
+                      )}
+                      <span className={`relative ${isDone ? 'text-green-400' : ''}`}>
+                        {isDone ? '✓' : seat.icon}
+                      </span>
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className={`text-sm font-medium transition-colors duration-500 ${
+                          isActive ? 'text-white' : isDone ? 'text-gray-400' : 'text-gray-600'
+                        }`}
+                      >
+                        {seat.name}
+                        {skipped && !isActive && (
+                          <span className="ml-2 text-xs text-gray-600">not needed</span>
+                        )}
+                      </div>
+                      {isActive && (
+                        <div className="text-xs text-orange-200/80 mt-0.5">
+                          {seatDetail || seat.line}
+                        </div>
+                      )}
+                    </div>
+
+                    {isActive && (
+                      <span className="mt-1 flex gap-1 shrink-0">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce-dot" />
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce-dot delay-100" />
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-pink-400 animate-bounce-dot delay-200" />
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-4 text-xs text-gray-500 leading-relaxed">
+              They review and rewrite their own work before you see it, so this takes a few
+              minutes. Keep this tab open.
+            </p>
+          </div>
+        )}
+
         {/* Error message */}
         {error && (
           <div className="mb-6 p-4 bg-orange-900/20 border border-orange-700/50 rounded-xl text-orange-200 text-sm flex items-start gap-3">
@@ -1018,18 +1113,13 @@ export default function Home() {
               className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-75 disabled:cursor-not-allowed bg-gradient-to-r from-orange-500 via-orange-400 to-pink-500 text-white shadow-xl hover:shadow-2xl animate-gradient"
             >
               {isLoading ? (
-                <div className="flex flex-col items-center justify-center gap-1">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="flex gap-1">
-                      <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot"></span>
-                      <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-100"></span>
-                      <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-200"></span>
-                    </div>
-                    <span>{phaseLabel}</span>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot"></span>
+                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-100"></span>
+                    <span className="inline-block w-2 h-2 rounded-full bg-white animate-bounce-dot delay-200"></span>
                   </div>
-                  {phaseDetail && (
-                    <span className="text-xs font-normal text-white/75">{phaseDetail}</span>
-                  )}
+                  <span>The council is working</span>
                 </div>
               ) : (
                 'Generate Deck'
@@ -1056,8 +1146,10 @@ export default function Home() {
                 setGeneratedFile(null);
                 setGeneratedFilename('presentation.pptx');
                 setPrompt('');
-                setPhaseLabel('Waking the council');
-                setPhaseDetail('');
+                setActiveSeat(null);
+                setSeatDetail('');
+                setReviewRound(0);
+                setFurthestSeat(-1);
                 setError(null);
                 setAnimations(true);
                 setPurposeIndex(null);

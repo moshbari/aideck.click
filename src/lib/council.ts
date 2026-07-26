@@ -176,9 +176,37 @@ function pacingRules(input: CouncilInput): string {
   return lines.join('\n');
 }
 
+// A 30-slide deck written in one call is slow and fragile. Past this size the
+// beat sheet is split and the batches are written side by side.
+const WRITE_CHUNK = 10;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 async function runScriptwriter(
   input: CouncilInput,
   strategy: Strategy,
+  beats: Beat[]
+): Promise<{ slides: any[] }> {
+  // Long decks get written in parallel batches — same instructions, a slice of
+  // the beat sheet each, so wall-clock stays flat as slide count grows.
+  if (beats.length > WRITE_CHUNK) {
+    const batches = chunk(beats, WRITE_CHUNK);
+    const results = await Promise.all(
+      batches.map((slice) => writeSlides(input, strategy, beats, slice))
+    );
+    return { slides: results.flatMap((r) => r?.slides || []) };
+  }
+  return writeSlides(input, strategy, beats, beats);
+}
+
+async function writeSlides(
+  input: CouncilInput,
+  strategy: Strategy,
+  allBeats: Beat[],
   beats: Beat[]
 ): Promise<{ slides: any[] }> {
   const isImage = input.deckType === 'full-image';
@@ -216,17 +244,28 @@ ${strategy.mustAvoid.length ? strategy.mustAvoid.map((r) => `- NEVER: ${r}`).joi
 
 ${input.purposeInstructions || ''}`;
 
+  const isSlice = beats.length !== allBeats.length;
   const user = [
     briefBlock(input),
     ``,
     `STRATEGY:`,
     JSON.stringify(strategy),
     ``,
+    isSlice
+      ? `THE FULL RUNNING ORDER (for context only — so your part flows with the rest):\n${JSON.stringify(
+          allBeats.map((b) => ({ n: b.n, headline: b.headline }))
+        )}`
+      : '',
+    ``,
     `THE BEAT SHEET — write one slide per beat, in this order:`,
     JSON.stringify(beats),
     ``,
-    `Write all ${input.slideCount} slides.`,
-  ].join('\n');
+    isSlice
+      ? `Write ONLY these ${beats.length} slides (numbers ${beats[0].n} to ${beats[beats.length - 1].n}). Keep each slide's "n" exactly as given.`
+      : `Write all ${input.slideCount} slides.`,
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   return askClaudeForJson(system, user);
 }
@@ -237,6 +276,28 @@ async function runArtDirector(
   input: CouncilInput,
   strategy: Strategy,
   beats: Beat[]
+): Promise<{ visualStyle: string; images: { n: number; imagePrompt: string }[] }> {
+  // Long decks: art direct in parallel batches too. The first batch sets the
+  // visual style and the rest inherit it, so the deck still looks like one set.
+  if (beats.length > WRITE_CHUNK) {
+    const batches = chunk(beats, WRITE_CHUNK);
+    const first = await directArt(input, strategy, batches[0], null);
+    const rest = await Promise.all(
+      batches.slice(1).map((slice) => directArt(input, strategy, slice, first?.visualStyle || null))
+    );
+    return {
+      visualStyle: first?.visualStyle || '',
+      images: [first, ...rest].flatMap((r) => r?.images || []),
+    };
+  }
+  return directArt(input, strategy, beats, null);
+}
+
+async function directArt(
+  input: CouncilInput,
+  strategy: Strategy,
+  beats: Beat[],
+  lockedStyle: string | null
 ): Promise<{ visualStyle: string; images: { n: number; imagePrompt: string }[] }> {
   const isImage = input.deckType === 'full-image';
 
@@ -251,8 +312,12 @@ JSON SHAPE:
 }
 
 RULES:
-1. Exactly ${input.slideCount} entries in "images", one per beat, in order.
-2. "visualStyle" is what makes ${input.slideCount} pictures look like ONE deck instead of ${input.slideCount} unrelated stock photos. Be specific: medium, lighting, mood.
+1. Exactly ${beats.length} entries in "images", one per beat given to you, in order. Keep each "n" exactly as given.
+2. ${
+    lockedStyle
+      ? `"visualStyle" is ALREADY DECIDED for this deck — return it back word for word: "${lockedStyle}". Every image you write must obey it.`
+      : `"visualStyle" is what makes ${input.slideCount} pictures look like ONE deck instead of ${input.slideCount} unrelated stock photos. Be specific: medium, lighting, mood.`
+  }
 3. Each imagePrompt describes ONE clear scene that carries that beat's meaning: subject, setting, action, framing.
 4. NO text, words, letters, numbers, logos or watermarks in any image — ever.
 5. Every image must be visibly different from the others. Vary subject and camera angle. Never the same scene twice.
@@ -272,7 +337,7 @@ ${input.paletteHint ? `7. Colour direction: ${input.paletteHint}` : `7. Choose c
     `THE BEAT SHEET:`,
     JSON.stringify(beats),
     ``,
-    `Art direct all ${input.slideCount} slides.`,
+    `Art direct these ${beats.length} slides (numbers ${beats[0].n} to ${beats[beats.length - 1].n}).`,
   ].join('\n');
 
   return askClaudeForJson(system, user);
@@ -286,19 +351,26 @@ ${input.paletteHint ? `7. Colour direction: ${input.paletteHint}` : `7. Choose c
  * Reviser verbatim, so "make it tighter" becomes "slide 3 is 47 words, budget
  * is 17".
  */
+export interface Defect {
+  slide: number | null;
+  message: string;
+}
+
 export function runTimekeeper(
   structure: PresentationStructure,
   input: CouncilInput
-): string[] {
-  const defects: string[] = [];
+): Defect[] {
+  const defects: Defect[] = [];
+  const push = (slide: number | null, message: string) => defects.push({ slide, message });
   const p = input.pacing;
   const isImage = input.deckType === 'full-image';
   const maxPoints = p.seconds <= 10 ? 3 : p.seconds <= 25 ? 4 : 6;
 
-  if (!Array.isArray(structure.slides)) return ['The deck has no slides at all.'];
+  if (!Array.isArray(structure.slides)) return [{ slide: null, message: 'The deck has no slides at all.' }];
 
   if (structure.slides.length !== input.slideCount) {
-    defects.push(
+    push(
+      null,
       `The deck has ${structure.slides.length} slides but the user asked for exactly ${input.slideCount}. Add or remove slides to hit ${input.slideCount}.`
     );
   }
@@ -308,13 +380,15 @@ export function runTimekeeper(
     const words = String(slide.speakerNotes || '').trim().split(/\s+/).filter(Boolean).length;
 
     if (words === 0) {
-      defects.push(`Slide ${n} has no speaker notes at all. Write ${p.words} words of script.`);
+      push(n, `Slide ${n} has no speaker notes at all. Write ${p.words} words of script.`);
     } else if (words > p.maxWords) {
-      defects.push(
+      push(
+        n,
         `Slide ${n} script is ${words} words — too long to say in ${p.seconds} seconds. Cut it to about ${p.words} words (hard max ${p.maxWords}).`
       );
     } else if (words < p.minWords) {
-      defects.push(
+      push(
+        n,
         `Slide ${n} script is only ${words} words — it leaves dead air in a ${p.seconds}-second slide. Grow it to about ${p.words} words.`
       );
     }
@@ -322,22 +396,23 @@ export function runTimekeeper(
     if (!isImage) {
       const titleWords = String(slide.title || '').trim().split(/\s+/).filter(Boolean).length;
       if (titleWords > 8) {
-        defects.push(`Slide ${n} title is ${titleWords} words. Titles are max 8 words.`);
+        push(n, `Slide ${n} title is ${titleWords} words. Titles are max 8 words.`);
       }
       const points = (slide.points || []) as SlidePoint[];
       if (points.length > maxPoints) {
-        defects.push(
+        push(
+          n,
           `Slide ${n} has ${points.length} bullets — nobody reads that in ${p.seconds} seconds. Cut to ${maxPoints} or fewer.`
         );
       }
       points.forEach((pt, j) => {
         const bw = String(pt?.text || '').trim().split(/\s+/).filter(Boolean).length;
-        if (bw > 10) defects.push(`Slide ${n} bullet ${j + 1} is ${bw} words. Bullets are max 10 words.`);
+        if (bw > 10) push(n, `Slide ${n} bullet ${j + 1} is ${bw} words. Bullets are max 10 words.`);
       });
     }
 
     if (input.needsImages && !String(slide.imagePrompt || '').trim()) {
-      defects.push(`Slide ${n} has no image prompt.`);
+      push(n, `Slide ${n} has no image prompt.`);
     }
   });
 
@@ -346,7 +421,7 @@ export function runTimekeeper(
   if (last) {
     const closingText = `${last.subtitle || ''} ${(last.points || []).map((x: any) => x?.text).join(' ')} ${last.speakerNotes || ''}`;
     if (closingText.trim().length < 10) {
-      defects.push('The last slide has no call to action. End on the one action the audience should take.');
+      push(structure.slides.length, 'The last slide has no call to action. End on the one action the audience should take.');
     }
   }
 
@@ -378,7 +453,7 @@ async function runCoach(
   input: CouncilInput,
   strategy: Strategy,
   structure: PresentationStructure,
-  defects: string[]
+  defects: Defect[]
 ): Promise<CoachVerdict> {
   const system = `You are a hard-nosed presentation coach. You have watched a thousand decks die in the room. You review this one before it ships.
 
@@ -418,7 +493,7 @@ RULES:
     compactDeck(structure),
     ``,
     defects.length
-      ? `THE MACHINE ALREADY FOUND THESE (don't repeat them, they're being fixed):\n- ${defects.join('\n- ')}`
+      ? `THE MACHINE ALREADY FOUND THESE (dont repeat them, theyre being fixed):\n- ${defects.map((d) => d.message).join('\n- ')}`
       : `The machine check found no timing or length problems.`,
     ``,
     `Review it.`,
@@ -429,14 +504,38 @@ RULES:
 
 // ────────────────────────────── 7. The Reviser ───────────────────────────────
 
+/**
+ * Only the broken slides get rewritten.
+ *
+ * Asking for the whole deck back on a 30-slide run is slow, risks the model
+ * quietly changing slides nobody complained about, and was the main reason a
+ * long deck took 13 minutes. We send the offending slides plus their
+ * neighbours for context, and splice the answers back in by slide number.
+ */
 async function runReviser(
   input: CouncilInput,
   strategy: Strategy,
   structure: PresentationStructure,
-  defects: string[],
+  defects: Defect[],
   fixes: CoachVerdict['fixes']
-): Promise<{ slides: any[] }> {
+): Promise<PresentationStructure> {
   const isImage = input.deckType === 'full-image';
+
+  // Which slides actually need attention?
+  const targets = new Set<number>();
+  defects.forEach((d) => {
+    if (d.slide) targets.add(d.slide);
+  });
+  fixes.forEach((f) => {
+    const n = Number(f?.slide);
+    if (Number.isFinite(n) && n >= 1 && n <= structure.slides.length) targets.add(n);
+  });
+
+  // A structural complaint with no slide number means everything is in play
+  const wholeDeck = defects.some((d) => d.slide === null) || targets.size === 0;
+  const slideNumbers = wholeDeck
+    ? structure.slides.map((_, i) => i + 1)
+    : Array.from(targets).sort((a, b) => a - b);
 
   const shape = isImage
     ? `{ "slides": [ { "n": 1, "title": "internal label", "speakerNotes": "..." } ] }`
@@ -446,34 +545,55 @@ async function runReviser(
 
 ${JSON_RULE}
 
-JSON SHAPE (return the COMPLETE deck, all ${input.slideCount} slides, fixed):
+JSON SHAPE — return ONLY the slides you were asked to fix, with their "n" unchanged:
 ${shape}
 
 ${pacingRules(input)}
 
 RULES:
 - Fix every item on both lists. Do not argue with them.
-- Leave slides nobody complained about exactly as they are.
-- Keep the same number of slides and the same running order unless a fix says otherwise.
+- Return exactly the slides listed as YOURS TO FIX — no others, no extras.
+- Keep each slide's "n" exactly as given so it drops back into the right place.
 - Keep the 5th grade reading level and the spoken, out-loud voice.
 - The user's own rules still override everything: ${[...strategy.mustInclude, ...strategy.mustAvoid.map((a) => `never ${a}`)].join('; ') || '(none)'}`;
 
   const user = [
-    `THE DECK TO FIX:`,
+    `THE DECK AS IT STANDS (for context):`,
     compactDeck(structure),
     ``,
-    defects.length ? `MACHINE CHECK FOUND:\n- ${defects.join('\n- ')}` : '',
-    ``,
+    `YOURS TO FIX — slides ${slideNumbers.join(', ')}:`,
+    defects.length ? `MACHINE CHECK FOUND:\n- ${defects.map((d) => d.message).join('\n- ')}` : '',
     fixes.length
       ? `THE COACH FOUND:\n${fixes.map((f) => `- Slide ${f.slide}: ${f.problem} → ${f.fix}`).join('\n')}`
       : '',
     ``,
-    `Return the complete fixed deck.`,
+    `Return the fixed versions of slides ${slideNumbers.join(', ')} only.`,
   ]
     .filter(Boolean)
     .join('\n');
 
-  return askClaudeForJson(system, user);
+  const revised = await askClaudeForJson(system, user);
+
+  // Splice the fixed slides back over the originals, by number
+  const byNumber = new Map<number, any>();
+  (revised?.slides || []).forEach((s: any, i: number) => {
+    const n = Number(s?.n) || slideNumbers[i];
+    if (n) byNumber.set(n, s);
+  });
+
+  const merged = structure.slides.map((original, i) => {
+    const replacement = byNumber.get(i + 1);
+    if (!replacement) return original;
+    return {
+      ...original,
+      title: replacement.title ? String(replacement.title) : original.title,
+      subtitle: replacement.subtitle ? String(replacement.subtitle) : original.subtitle,
+      points: isImage ? undefined : normalizePoints(replacement.points) || original.points,
+      speakerNotes: replacement.speakerNotes ? String(replacement.speakerNotes) : original.speakerNotes,
+    } as SlideData;
+  });
+
+  return { ...structure, slides: merged };
 }
 
 // ─────────────────────────────── assembly ────────────────────────────────────
@@ -585,10 +705,7 @@ export async function runCouncil(
       detail: `Fixing ${defects.length + fixes.length} note${defects.length + fixes.length === 1 ? '' : 's'}`,
     });
     try {
-      const revised = await runReviser(input, strategy, structure, defects, fixes);
-      if (Array.isArray(revised?.slides) && revised.slides.length) {
-        structure = assemble(input, structure.title, beats, revised, art);
-      }
+      structure = await runReviser(input, strategy, structure, defects, fixes);
     } catch (error) {
       console.error('Reviser failed (keeping previous draft):', error instanceof Error ? error.message : error);
       break;
@@ -603,12 +720,9 @@ export async function runCouncil(
     console.log(`Council final check: ${finalDefects.length} still out of budget — one focused repair`);
     onProgress({ phase: 'revising', detail: 'Last pass on the clock' });
     try {
-      const repaired = await runReviser(input, strategy, structure, finalDefects, []);
-      if (Array.isArray(repaired?.slides) && repaired.slides.length) {
-        const candidate = assemble(input, structure.title, beats, repaired, art);
-        // Only accept the repair if it genuinely improved things
-        if (runTimekeeper(candidate, input).length < finalDefects.length) structure = candidate;
-      }
+      const candidate = await runReviser(input, strategy, structure, finalDefects, []);
+      // Only accept the repair if it genuinely improved things
+      if (runTimekeeper(candidate, input).length < finalDefects.length) structure = candidate;
     } catch (error) {
       console.error('Final repair failed (shipping previous draft):', error instanceof Error ? error.message : error);
     }
