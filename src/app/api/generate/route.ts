@@ -4,7 +4,16 @@ import sharp from 'sharp';
 import { generatePptx } from '@/lib/generate-pptx';
 import { generateImagePptx } from '@/lib/generate-image-pptx';
 import { askClaudeForJson, usingSubscription } from '@/lib/claude-cli';
-import { DeckType, GenerateRequest, Pacing, PresentationStructure, SlideData, getPacing } from '@/lib/types';
+import {
+  DeckType,
+  GenerateRequest,
+  ImageQuality,
+  Pacing,
+  PresentationStructure,
+  SlideData,
+  estimateImageCost,
+  getPacing,
+} from '@/lib/types';
 import { uploadToR2, generateSmartFilename, generateDescription } from '@/lib/r2';
 import { createClient } from '@supabase/supabase-js';
 
@@ -17,6 +26,11 @@ const VALID_THEMES = ['navy-gold', 'coral-energy', 'forest-green', 'charcoal-min
 
 // The two kinds of deck a user can ask for
 const VALID_DECK_TYPES: DeckType[] = ['designed', 'full-image'];
+
+// Image spend is opt-in: anything above 'low' has to be chosen deliberately.
+const VALID_IMAGE_QUALITIES: ImageQuality[] = ['none', 'low', 'medium', 'high'];
+const DEFAULT_IMAGE_QUALITY: ImageQuality =
+  (process.env.FULL_IMAGE_QUALITY as ImageQuality) || 'low';
 
 // Valid tones for reading level guidance
 const VALID_TONES = [
@@ -66,11 +80,27 @@ function validateGenerateRequest(body: any): { valid: boolean; error?: string } 
   }
 
   // Validate secondsPerSlide (optional — how long each slide stays on screen)
-  const { secondsPerSlide } = body;
+  const { secondsPerSlide, imageQuality } = body;
   if (secondsPerSlide !== undefined) {
     if (!Number.isInteger(secondsPerSlide) || secondsPerSlide < 3 || secondsPerSlide > 600) {
       return { valid: false, error: 'secondsPerSlide must be an integer between 3 and 600' };
     }
+  }
+
+  // Validate imageQuality (optional — controls how much the pictures cost)
+  if (imageQuality !== undefined && !VALID_IMAGE_QUALITIES.includes(imageQuality)) {
+    return {
+      valid: false,
+      error: `imageQuality must be one of: ${VALID_IMAGE_QUALITIES.join(', ')}`,
+    };
+  }
+
+  // A full-slide image deck with no images is just blank slides
+  if (imageQuality === 'none' && deckType === 'full-image') {
+    return {
+      valid: false,
+      error: 'A Full-Slide Image Deck needs images — choose Low, Medium or High quality',
+    };
   }
 
   // Validate colorTheme
@@ -458,7 +488,8 @@ async function prepareFullSlideImage(b64: string): Promise<string> {
 async function generateFullSlideImages(
   slides: SlideData[],
   visualStyle: string,
-  palette: string
+  palette: string,
+  quality: 'low' | 'medium' | 'high'
 ): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -467,7 +498,6 @@ async function generateFullSlideImages(
   }
 
   const openai = new OpenAI({ apiKey });
-  const quality = (process.env.FULL_IMAGE_QUALITY || 'medium') as 'low' | 'medium' | 'high';
   // Rapid-fire decks can run to 60 slides — widen the batch so a long deck
   // still finishes inside the request window.
   const BATCH_SIZE = slides.length > 20 ? 8 : 4;
@@ -515,7 +545,10 @@ async function generateFullSlideImages(
 }
 
 // ─── AI Image Generation (GPT Image 1.5) ───
-async function generateSlideImages(slides: SlideData[]): Promise<void> {
+async function generateSlideImages(
+  slides: SlideData[],
+  quality: 'low' | 'medium' | 'high'
+): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     console.log('OPENAI_API_KEY not set — skipping image generation');
@@ -533,7 +566,7 @@ async function generateSlideImages(slides: SlideData[]): Promise<void> {
         prompt: `${slide.imagePrompt}. Style: flat vector illustration, clean modern style, simple geometric shapes, vibrant colors, no text, no words, no letters, no numbers, presentation-ready graphic, white or transparent background.`,
         n: 1,
         size: '1024x1024',
-        quality: 'low',
+        quality,
       });
 
       if (response.data && response.data[0]?.b64_json) {
@@ -582,12 +615,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const enableAnimations = !isImageDeck && animations === true;
     // How long each slide stays on screen → how many words the script gets
     const pacing = getPacing(body.secondsPerSlide ?? 30, slides);
+    // Image spend never escalates by itself — default is the cheapest tier
+    const imageQuality: ImageQuality = body.imageQuality ?? DEFAULT_IMAGE_QUALITY;
+    const projectedImageCost = estimateImageCost(deckType, slides, imageQuality);
 
     // Which brain is writing this deck — makes it obvious in the logs whether
     // we're on the owner's Claude subscription or the API-key fallback.
     console.log(
       `Writing engine: ${usingSubscription() ? 'CLAUDE SUBSCRIPTION (claude CLI)' : 'ANTHROPIC API KEY (fallback)'}` +
-      ` | deck=${deckType} slides=${slides} secondsPerSlide=${pacing.seconds} wordsPerSlide=${pacing.words}`
+      ` | deck=${deckType} slides=${slides} secondsPerSlide=${pacing.seconds} wordsPerSlide=${pacing.words}` +
+      ` | images=${imageQuality} est.$${projectedImageCost.toFixed(2)}`
     );
 
     // Call Claude to generate structure
@@ -605,21 +642,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Generate the AI artwork for each slide
-    try {
-      if (isImageDeck) {
-        await generateFullSlideImages(
-          structure.slides,
-          structure.visualStyle || 'Clean modern cinematic illustration with soft lighting.',
-          getPalette(colorTheme)
-        );
-      } else {
-        await generateSlideImages(structure.slides);
+    // Generate the AI artwork for each slide — unless the user asked for none
+    if (imageQuality === 'none') {
+      console.log('Image quality set to "none" — skipping image generation (no image spend)');
+    } else {
+      try {
+        if (isImageDeck) {
+          await generateFullSlideImages(
+            structure.slides,
+            structure.visualStyle || 'Clean modern cinematic illustration with soft lighting.',
+            getPalette(colorTheme),
+            imageQuality
+          );
+        } else {
+          await generateSlideImages(structure.slides, imageQuality);
+        }
+        console.log(`Image generation complete: ${structure.slides.filter(s => s.imageData).length}/${structure.slides.length} slides have images`);
+      } catch (error) {
+        console.error('Image generation error (non-blocking):', error instanceof Error ? error.message : error);
+        // Non-fatal: presentation will still generate without images
       }
-      console.log(`Image generation complete: ${structure.slides.filter(s => s.imageData).length}/${structure.slides.length} slides have images`);
-    } catch (error) {
-      console.error('Image generation error (non-blocking):', error instanceof Error ? error.message : error);
-      // Non-fatal: presentation will still generate without images
     }
 
     // A full-image deck with no images is just blank slides — fail loudly instead

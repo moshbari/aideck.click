@@ -204,6 +204,27 @@ const PACE_OPTIONS = [
 
 const WORDS_PER_SECOND = 2.3; // ~138 words a minute, a natural speaking pace
 
+// Real gpt-image-1.5 per-image prices (verified July 2026). Designed decks use
+// small 1024x1024 images; full-slide image decks use 1536x1024.
+const IMAGE_PRICES = {
+  designed: { low: 0.009, medium: 0.034, high: 0.133 },
+  'full-image': { low: 0.013, medium: 0.05, high: 0.2 },
+} as const;
+
+const IMAGE_QUALITY_OPTIONS = [
+  { value: 'none' as const, label: 'No images', note: 'Text only, free' },
+  { value: 'low' as const, label: 'Low', note: 'Cheapest' },
+  { value: 'medium' as const, label: 'Medium', note: 'Sharper' },
+  { value: 'high' as const, label: 'High', note: 'Best, priciest' },
+];
+
+function formatCost(dollars: number): string {
+  if (dollars === 0) return 'free';
+  if (dollars < 0.01) return '<1¢';
+  if (dollars < 1) return `${Math.round(dollars * 100)}¢`;
+  return `$${dollars.toFixed(2)}`;
+}
+
 function formatRuntime(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
@@ -249,6 +270,7 @@ export default function Home() {
   const [toneIndex, setToneIndex] = useState(0);
   const [slides, setSlides] = useState(10);
   const [secondsPerSlide, setSecondsPerSlide] = useState(30);
+  const [imageQuality, setImageQuality] = useState<'none' | 'low' | 'medium' | 'high'>('low');
   const [colorIndex, setColorIndex] = useState(0);
   const [purposeIndex, setPurposeIndex] = useState<number | null>(null);
   const [animations, setAnimations] = useState(true); // ON by default
@@ -277,6 +299,15 @@ export default function Home() {
   // What the pacing choice actually means, shown live under the picker
   const wordsPerSlide = Math.max(8, Math.round(secondsPerSlide * WORDS_PER_SECOND));
   const totalRuntime = formatRuntime(secondsPerSlide * slides);
+
+  // A full-slide image deck can't have "no images" — it would be blank slides
+  const availableQualities = isImageDeck
+    ? IMAGE_QUALITY_OPTIONS.filter((q) => q.value !== 'none')
+    : IMAGE_QUALITY_OPTIONS;
+  const effectiveQuality = isImageDeck && imageQuality === 'none' ? 'low' : imageQuality;
+  const costFor = (q: 'none' | 'low' | 'medium' | 'high') =>
+    q === 'none' ? 0 : IMAGE_PRICES[deckType][q] * slides;
+  const imageCost = costFor(effectiveQuality);
 
   // Auth check + restore last prompt from localStorage
   useEffect(() => {
@@ -355,6 +386,7 @@ export default function Home() {
           tone: TONE_OPTIONS[toneIndex].value,
           slides,
           secondsPerSlide,
+          imageQuality: effectiveQuality,
           colorTheme: COLOR_OPTIONS[colorIndex].value,
           animations: isImageDeck ? false : animations,
           deckType,
@@ -711,6 +743,58 @@ export default function Home() {
             {isImageDeck && slides >= 30 && (
               <span className="block mt-1 text-gray-500">
                 {slides} AI images take a few minutes to paint. Keep this tab open.
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Options Row 2c: Image quality — the only thing here that costs money */}
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-300 mb-1">
+            Image Quality
+          </label>
+          <p className="text-xs text-gray-500 mb-3">
+            {isImageDeck
+              ? 'Every slide is one big AI image, so this is what the deck costs to make.'
+              : 'Each slide gets a small AI illustration. Turn images off for a free, text-only deck.'}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {availableQualities.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setImageQuality(option.value)}
+                className={`px-5 py-2.5 rounded-full font-medium transition-all ${
+                  effectiveQuality === option.value
+                    ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg'
+                    : 'bg-gray-900 text-gray-300 border border-gray-800 hover:border-gray-700'
+                }`}
+              >
+                {option.label}
+                <span className={`ml-2 text-xs ${effectiveQuality === option.value ? 'text-white/80' : 'text-gray-500'}`}>
+                  {formatCost(costFor(option.value))}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className={`mt-3 p-3 rounded-xl border text-xs leading-relaxed ${
+            imageCost >= 1
+              ? 'bg-orange-900/20 border-orange-700/50 text-orange-200'
+              : 'bg-gray-900 border-gray-800 text-gray-400'
+          }`}>
+            {imageCost === 0 ? (
+              <>No images will be generated — this deck costs <span className="font-semibold">nothing</span> to make.</>
+            ) : (
+              <>
+                This deck will generate <span className="text-orange-400 font-semibold">{slides} images</span>
+                {' at '}
+                <span className="text-orange-400 font-semibold">{effectiveQuality}</span> quality
+                {' ≈ '}
+                <span className="text-orange-400 font-semibold">{formatCost(imageCost)}</span> in image costs.
+              </>
+            )}
+            {imageCost >= 1 && (
+              <span className="block mt-1 font-semibold">
+                That&apos;s a big one — drop to Low or use fewer slides if you don&apos;t need the detail.
               </span>
             )}
           </div>
